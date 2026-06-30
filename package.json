@@ -1,0 +1,18 @@
+{
+  "name": "gcw-skill",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Evidence-verified production website recovery skill and toolkit",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "check": "node scripts/check_environment.mjs",
+    "check:syntax": "node --check scripts/site_inventory.mjs && node --check scripts/capture_compare.mjs && node --check scripts/check_environment.mjs",
+    "install:browser": "playwright install chromium"
+  },
+  "dependencies": {
+    "playwright": "1.61.1"
+  }
+}

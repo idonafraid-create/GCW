@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+node_modules/
+.playwright/
+/assets/images/
+/docs/analysis/
+.env
+.env.*
+!.env.example
+*.log
+coverage/
+dist/
+.DS_Store
+Thumbs.db

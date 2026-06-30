@@ -1,0 +1,63 @@
+name: GCW visual regression
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+jobs:
+  visual-regression:
+    runs-on: ubuntu-latest
+    env:
+      GCW_SOURCE_URL: ${{ vars.GCW_SOURCE_URL }}
+      GCW_CANDIDATE_URL: http://127.0.0.1:4173
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install application dependencies
+        run: npm ci
+
+      - name: Install GCW dependencies
+        run: |
+          npm install --prefix .gcw
+          npx --prefix .gcw playwright install --with-deps chromium
+          python -m pip install Pillow
+
+      - name: Build application
+        run: npm run build
+
+      - name: Start preview
+        run: |
+          nohup npm run preview -- --host 127.0.0.1 --port 4173 > .gcw/preview.log 2>&1 &
+          for attempt in {1..60}; do
+            if curl --fail --silent http://127.0.0.1:4173/ > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat .gcw/preview.log
+          exit 1
+
+      - name: Capture paired screenshots
+        run: node .gcw/tools/capture_compare.mjs --config .gcw/capture-scenarios.json --output .gcw/results
+
+      - name: Smoke-test root route
+        run: python .gcw/tools/route_smoke.py --base-url "$GCW_CANDIDATE_URL" --route / --out .gcw/results/route-smoke.json
+
+      - name: Compare screenshots
+        run: python .gcw/tools/batch_image_diff.py .gcw/results --diff-dir .gcw/results/diff --max-changed-pct "${GCW_MAX_CHANGED_PCT:-1.0}" --max-mean-abs "${GCW_MAX_MEAN_ABS:-2.0}"
+
+      - name: Upload GCW evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gcw-visual-regression
+          path: |
+            .gcw/results
+            .gcw/preview.log

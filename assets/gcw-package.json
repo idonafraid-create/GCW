@@ -1,0 +1,9 @@
+{
+  "name": "gcw-visual-regression",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "playwright": "1.60.0"
+  }
+}
+
