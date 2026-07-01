@@ -3,20 +3,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
-
-const SENSITIVE_QUERY_KEYS = /^(key|api[-_]?key|token|access[-_]?token|auth|authorization|signature|secret|password)$/i;
-
-function sanitizeUrl(value) {
-  try {
-    const url = new URL(value);
-    for (const key of [...url.searchParams.keys()]) {
-      if (SENSITIVE_QUERY_KEYS.test(key)) url.searchParams.set(key, "REDACTED");
-    }
-    return url.href;
-  } catch {
-    return value;
-  }
-}
+import { assertSameOriginRedirects, hasSensitiveQuery, parsePublicHttpUrl, sanitizeText, sanitizeUrl } from "./url_safety.mjs";
 
 function sanitizeSurface(surface) {
   for (const field of ["iframes", "images", "scripts", "stylesheets", "anchors"]) {
@@ -43,6 +30,9 @@ function parseArgs(argv) {
   if (!args.url || !args.out) {
     throw new Error("Usage: site_inventory.mjs --url <url> --out <file> [--max-routes 25]");
   }
+  if (!Number.isInteger(args.maxRoutes) || args.maxRoutes <= 0) throw new Error("--max-routes must be a positive integer");
+  if (!Number.isFinite(args.timeout) || args.timeout <= 0) throw new Error("--timeout must be a positive number");
+  if (!Number.isFinite(args.settleMs) || args.settleMs < 0) throw new Error("--settle-ms must be zero or greater");
   return args;
 }
 
@@ -54,14 +44,44 @@ async function loadPlaywright() {
   }
 }
 
+async function installCanvasProbe(context) {
+  await context.addInitScript(() => {
+    const observedContexts = new WeakMap();
+    const originalGetContext = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function getContext(type, ...args) {
+      const result = Reflect.apply(originalGetContext, this, [type, ...args]);
+      if (result) {
+        observedContexts.set(this, {
+          type: String(type),
+          attributes: typeof result.getContextAttributes === "function" ? result.getContextAttributes() : null,
+        });
+      }
+      return result;
+    };
+    Object.defineProperty(window, "__gcwCanvasContexts", { value: observedContexts });
+  });
+}
+
+async function installNavigationGuard(context, allowedOrigin) {
+  await context.route("**/*", async (route) => {
+    const request = route.request();
+    if (request.resourceType() === "document") {
+      const target = new URL(request.url());
+      if (target.origin !== allowedOrigin) {
+        await route.abort("blockedbyclient");
+        return;
+      }
+    }
+    await route.continue();
+  });
+}
+
 function normalizeRoute(href, origin) {
   try {
     const url = new URL(href, origin);
     if (url.origin !== origin || !["http:", "https:"].includes(url.protocol)) return null;
     url.hash = "";
-    for (const key of [...url.searchParams.keys()]) {
-      if (SENSITIVE_QUERY_KEYS.test(key)) url.searchParams.delete(key);
-    }
+    if (hasSensitiveQuery(url)) return null;
     return `${url.pathname}${url.search}` || "/";
   } catch {
     return null;
@@ -71,25 +91,12 @@ function normalizeRoute(href, origin) {
 async function inspectPage(page) {
   return page.evaluate(() => {
     const canvases = [...document.querySelectorAll("canvas")].map((canvas, index) => {
-      let context = "unknown";
-      let attributes = null;
-      for (const type of ["webgl2", "webgl", "experimental-webgl", "2d", "bitmaprenderer"]) {
-        try {
-          const candidate = canvas.getContext(type);
-          if (candidate) {
-            context = type;
-            attributes = typeof candidate.getContextAttributes === "function" ? candidate.getContextAttributes() : null;
-            break;
-          }
-        } catch {
-          // The canvas may already be bound to a different context type.
-        }
-      }
+      const observed = window.__gcwCanvasContexts?.get(canvas);
       const rect = canvas.getBoundingClientRect();
       return {
         index,
-        context,
-        attributes,
+        context: observed?.type || "unknown",
+        attributes: observed?.attributes || null,
         width: canvas.width,
         height: canvas.height,
         clientRect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
@@ -124,74 +131,80 @@ async function inspectPage(page) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const canonical = new URL(args.url);
+  const canonical = parsePublicHttpUrl(args.url, "--url");
   const { chromium } = await loadPlaywright();
   const executablePath = args.executablePath || process.env.GCW_BROWSER_EXECUTABLE || undefined;
   const browser = await chromium.launch({ headless: true, executablePath });
-  const context = await browser.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
-  const page = await context.newPage();
-  page.setDefaultTimeout(args.timeout);
+  try {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
+    await installCanvasProbe(context);
+    await installNavigationGuard(context, canonical.origin);
+    const page = await context.newPage();
+    page.setDefaultTimeout(args.timeout);
 
-  const resources = new Map();
-  context.on("request", (request) => {
-    const url = request.url();
-    if (!resources.has(url)) {
-      resources.set(url, { url: sanitizeUrl(url), method: request.method(), resourceType: request.resourceType(), status: null, mimeType: null });
-    }
-  });
-  context.on("response", async (response) => {
-    const request = response.request();
-    const current = resources.get(response.url()) || { url: sanitizeUrl(response.url()), method: request.method(), resourceType: request.resourceType() };
-    current.status = response.status();
-    current.mimeType = (await response.headerValue("content-type")) || null;
-    resources.set(response.url(), current);
-  });
-
-  const queue = [normalizeRoute(canonical.href, canonical.origin) || "/"];
-  const queued = new Set(queue);
-  const visited = new Set();
-  const routes = [];
-
-  while (queue.length && routes.length < args.maxRoutes) {
-    const route = queue.shift();
-    if (visited.has(route)) continue;
-    visited.add(route);
-    const url = new URL(route, canonical.origin).href;
-    const record = { route, url, status: null, error: null, surface: null };
-    try {
-      const response = await page.goto(url, { waitUntil: "domcontentloaded", timeout: args.timeout });
-      record.status = response?.status() ?? null;
-      await page.waitForTimeout(args.settleMs);
-      record.surface = sanitizeSurface(await inspectPage(page));
-      for (const href of record.surface.anchors) {
-        const candidate = normalizeRoute(href, canonical.origin);
-        if (candidate && !queued.has(candidate) && !visited.has(candidate)) {
-          queued.add(candidate);
-          queue.push(candidate);
-        }
+    const resources = new Map();
+    context.on("request", (request) => {
+      const url = request.url();
+      if (!resources.has(url)) {
+        resources.set(url, { url: sanitizeUrl(url), method: request.method(), resourceType: request.resourceType(), status: null, mimeType: null });
       }
-    } catch (error) {
-      record.error = error.message;
-    }
-    routes.push(record);
-  }
+    });
+    context.on("response", (response) => {
+      const request = response.request();
+      const current = resources.get(response.url()) || { url: sanitizeUrl(response.url()), method: request.method(), resourceType: request.resourceType() };
+      current.status = response.status();
+      current.mimeType = response.headers()["content-type"] || null;
+      resources.set(response.url(), current);
+    });
 
-  await browser.close();
-  const output = {
-    schemaVersion: 1,
-    generatedAt: new Date().toISOString(),
-    canonicalUrl: canonical.href,
-    origin: canonical.origin,
-    limits: { maxRoutes: args.maxRoutes, timeout: args.timeout, settleMs: args.settleMs },
-    routes,
-    resources: [...resources.values()].sort((a, b) => a.url.localeCompare(b.url)),
-  };
-  await mkdir(path.dirname(path.resolve(args.out)), { recursive: true });
-  await writeFile(path.resolve(args.out), `${JSON.stringify(output, null, 2)}\n`, "utf8");
-  console.log(JSON.stringify({ out: path.resolve(args.out), routes: routes.length, resources: output.resources.length }, null, 2));
+    const queue = [normalizeRoute(canonical.href, canonical.origin) || "/"];
+    const queued = new Set(queue);
+    const visited = new Set();
+    const routes = [];
+
+    while (queue.length && routes.length < args.maxRoutes) {
+      const route = queue.shift();
+      if (visited.has(route)) continue;
+      visited.add(route);
+      const url = new URL(route, canonical.origin).href;
+      const record = { route, url: sanitizeUrl(url), status: null, error: null, surface: null };
+      try {
+        await assertSameOriginRedirects(url, canonical.origin, `Route '${route}'`, args.timeout);
+        const response = await page.goto(url, { waitUntil: "domcontentloaded", timeout: args.timeout });
+        record.status = response?.status() ?? null;
+        await page.waitForTimeout(args.settleMs);
+        record.surface = sanitizeSurface(await inspectPage(page));
+        for (const href of record.surface.anchors) {
+          const candidate = normalizeRoute(href, canonical.origin);
+          if (candidate && !queued.has(candidate) && !visited.has(candidate)) {
+            queued.add(candidate);
+            queue.push(candidate);
+          }
+        }
+      } catch (error) {
+        record.error = sanitizeText(error.message);
+      }
+      routes.push(record);
+    }
+
+    const output = {
+      schemaVersion: 1,
+      generatedAt: new Date().toISOString(),
+      canonicalUrl: sanitizeUrl(canonical.href),
+      origin: canonical.origin,
+      limits: { maxRoutes: args.maxRoutes, timeout: args.timeout, settleMs: args.settleMs },
+      routes,
+      resources: [...resources.values()].sort((a, b) => a.url.localeCompare(b.url)),
+    };
+    await mkdir(path.dirname(path.resolve(args.out)), { recursive: true });
+    await writeFile(path.resolve(args.out), `${JSON.stringify(output, null, 2)}\n`, "utf8");
+    console.log(JSON.stringify({ out: path.resolve(args.out), routes: routes.length, resources: output.resources.length }, null, 2));
+  } finally {
+    await browser.close();
+  }
 }
 
 main().catch((error) => {
-  console.error(error.stack || error.message);
+  console.error(sanitizeText(error.stack || error.message));
   process.exitCode = 1;
 });

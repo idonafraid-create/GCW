@@ -8,6 +8,8 @@ import json
 import shutil
 from pathlib import Path
 
+from url_safety import validate_public_url
+
 
 def main() -> int:
     parser = argparse.ArgumentParser()
@@ -16,6 +18,11 @@ def main() -> int:
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args()
 
+    try:
+        validate_public_url(args.source_url, "--source-url")
+    except ValueError as error:
+        parser.error(str(error))
+
     project = args.project.resolve()
     if not project.is_dir():
         parser.error(f"project directory does not exist: {project}")
@@ -23,9 +30,13 @@ def main() -> int:
     skill = Path(__file__).resolve().parent.parent
     files = {
         skill / "scripts" / "capture_compare.mjs": project / ".gcw" / "tools" / "capture_compare.mjs",
+        skill / "scripts" / "url_safety.mjs": project / ".gcw" / "tools" / "url_safety.mjs",
         skill / "scripts" / "batch_image_diff.py": project / ".gcw" / "tools" / "batch_image_diff.py",
         skill / "scripts" / "route_smoke.py": project / ".gcw" / "tools" / "route_smoke.py",
+        skill / "scripts" / "url_safety.py": project / ".gcw" / "tools" / "url_safety.py",
         skill / "assets" / "gcw-package.json": project / ".gcw" / "package.json",
+        skill / "assets" / "gcw-package-lock.json": project / ".gcw" / "package-lock.json",
+        skill / "assets" / "gcw-requirements.txt": project / ".gcw" / "requirements.txt",
         skill / "assets" / "gcw-gitignore": project / ".gcw" / ".gitignore",
         skill / "assets" / "capture-scenarios.example.json": project / ".gcw" / "capture-scenarios.json",
         skill / "assets" / "github-workflows" / "gcw-visual-regression.yml": project / ".github" / "workflows" / "gcw-visual-regression.yml",

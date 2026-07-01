@@ -1,6 +1,6 @@
-# Gates
+# Production recovery gates
 
-Do not advance when a required artifact is missing.
+Use these gates for `PRODUCTION_RECOVERY` and other explicitly high-assurance work. Do not impose the full gate set on a one-off teardown or ordinary creative rebuild. When a gate is selected in preflight, do not advance while its required artifact is missing.
 
 | Gate | Required proof | Blocking failures |
 |---|---|---|

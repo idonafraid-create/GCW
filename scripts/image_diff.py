@@ -27,6 +27,8 @@ def main() -> int:
     parser.add_argument("--threshold", type=int, default=4)
     parser.add_argument("--diff", type=Path)
     args = parser.parse_args()
+    if not 0 <= args.threshold <= 255:
+        parser.error("--threshold must be between 0 and 255")
 
     source = Image.open(args.source).convert("RGB")
     candidate = Image.open(args.candidate).convert("RGB")

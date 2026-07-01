@@ -8,6 +8,8 @@ import json
 from pathlib import Path
 from urllib.parse import urlparse
 
+from url_safety import validate_public_url, validate_relative_route
+
 
 EVIDENCE_DIRS = ("screenshots", "dom", "network", "runtime", "source", "gpu")
 
@@ -25,11 +27,16 @@ def main() -> int:
     parser.add_argument("workspace", type=Path)
     parser.add_argument("--url", required=True)
     parser.add_argument("--route", action="append", default=[])
+    parser.add_argument("--authorization", choices=("unconfirmed", "owned", "licensed", "authorized"), default="unconfirmed")
     args = parser.parse_args()
 
+    try:
+        validate_public_url(args.url, "--url")
+        for route in args.route:
+            validate_relative_route(route, "--route")
+    except ValueError as error:
+        parser.error(str(error))
     parsed = urlparse(args.url)
-    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-        parser.error("--url must be an absolute http(s) URL")
 
     workspace = args.workspace.resolve()
     if not workspace.is_dir():
@@ -44,10 +51,10 @@ def main() -> int:
 
     routes = args.route or [parsed.path or "/"]
     state = {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "skill": "gcw",
         "sourceUrl": args.url,
-        "permissionBoundary": "public-user-authorized",
+        "permissionBoundary": args.authorization,
         "routes": routes,
         "state": "SCOPE",
         "gates": {
@@ -59,7 +66,9 @@ def main() -> int:
             "projectVerified": False,
             "automationReady": False,
         },
-        "recoveryTier": "",
+        "cloneMode": "",
+        "implementationPath": "",
+        "recoveryStrategy": "",
         "blockingUnknowns": [],
         "evidence": [],
     }

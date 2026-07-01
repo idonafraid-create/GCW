@@ -1,59 +1,57 @@
 # GCW
 
-把经过授权的线上网站恢复为可在本地运行、可以部署、并且有证据可核验的项目。
+以证据驱动的网站复刻、技术拆解与创意重建工具。
 
 <p align="center">
   <a href="./README.md">English</a> · <strong>简体中文</strong>
 </p>
 
-<img src="./assets/banner.webp" alt="GCW — 以证据驱动的网站恢复" width="100%">
+<img src="./assets/banner.webp" alt="GCW — 以证据驱动的网站复刻" width="100%">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
-GCW 是 Gao Copy Website 的缩写。它是一套 Agent Skill 和工具脚本，适合处理一种很具体的情况：网站所有者丢失了源码，但公开生产站点仍然在线。
+看到一个值得学习的网站，想知道它到底是怎么实现的，或者把关键效果复刻成可运行、可修改的本地项目？GCW 会先寻找真实源码和公开运行证据，再选择合适的复刻路径，并在真实浏览器中验证结果。
 
-GCW 不会把浏览器里的压缩产物冒充成原始源码。它会区分哪些事实直接来自生产环境，哪些信息只能部分确认，哪些内容仍是推断。最后得到的不只是一份能运行的项目，还包括可复查的证据和验证结果。
+GCW 不会把看起来合理的 AI 推测当成真实实现，也不会把线上压缩产物冒充成原始工程源码。参考证据、推断结果和你的可编辑实现会被清楚区分。
 
-## GCW 能恢复什么
+> 先找证据，再实现；先跑通，再重构；先对照，再美化。
 
-- 公开路由、HTML、样式、脚本、字体、图片、音频、模型和 Shader 文本
-- DOM、Canvas、WebGL、WebGPU、Worker、iframe 和媒体渲染面
-- 时间、鼠标、滚动、视口、主题、Storage 与界面状态产生的输入
-- 桌面端和移动端的成对截图，以及可量化的图像差异
-- 静态部署行为、路由 Smoke Test 和 GitHub Actions 截图回归
+## 你可以用 GCW 做什么
 
-登录后内容、私有服务端逻辑、原始注释、Git 历史和凭证不属于恢复范围。
+| 目标 | 得到什么 |
+|---|---|
+| 学习优秀网站 | 有证据支撑的技术拆解和可迁移方法 |
+| 忠实复刻网站 | 可本地运行，并经过路由、响应式、交互和视觉检查的项目 |
+| 改造成自己的版本 | Design DNA、替换指南和原创的可编辑实现 |
+| 恢复自有生产站 | 源码不可用时的已验证回放或可维护重建 |
 
-## 三种恢复层级
+GCW 可处理静态页面、React/Vue/Next 内容站、多页面官网、动画型品牌站，以及 Canvas、WebGL、WebGPU 重前端网站。登录、私有服务端逻辑、支付、权限和专有 API 默认不在范围内。
 
-| 层级 | 适用情况 | 结果 |
-|---|---|---|
-| `ARTIFACT_REPLAY` | 公开生产产物仍能在本地运行 | 保持字节和行为的基线，用作视觉对照标准 |
-| `PIPELINE_REPLAY` | 已经能还原渲染图和运行时连接关系 | 重建后的 WebGL 或应用管线 |
-| `EDITABLE_REBUILD` | 目标是获得长期可维护的源码 | 可读组件，并持续和已验证基线对照 |
+普通网站是 GCW 的正式适用场景，不是次要兼容项。GCW 的差异化在于：同一套流程还能继续处理复杂动效、交互状态和 GPU 渲染，并保持证据记录与浏览器验证。
 
-<img src="./assets/features.webp" alt="GCW 工作流：公开证据、恢复、验证与部署" width="100%">
+## GCW 怎样工作
 
-GCW 通常先建立 Artifact Replay。有了稳定的对照标准，后续可编辑重构才不容易越改越偏。
+1. **先确定目标**：技术拆解、忠实复刻、创意重建或生产恢复。
+2. **寻找真实实现**：重建之前先搜索官方仓库、Source Map 和公开部署证据。
+3. **侦察网站**：梳理路由、资源、断点、交互状态和高级渲染区域。
+4. **选择路径**：复用合规源码、保留简单静态站、组件化重建、建立数据替身或恢复渲染管线。
+5. **在本地实现**：参考证据与可编辑代码分开保存。
+6. **浏览器验证**：对照路由，以及桌面端、移动端和交互状态。
+7. **沉淀学习成果**：按需要留下技术拆解、Design DNA、替换指南或复刻报告。
+
+<img src="./assets/features.webp" alt="GCW 工作流：公开证据、本地重建、验证与部署" width="100%">
 
 ## 快速开始
 
-### 1. 安装两个联动 Skills
+### 1. 安装 GCW
 
-使用 GCW 执行完整的高保真复刻流程前，先安装两个专业分析 Skills：
+把本仓库克隆为唯一源码：
 
 ```bash
-npx skills add https://github.com/lixiaolin94/skills/tree/main/web-shader-extractor
-npx skills add zanwei/design-dna
+git clone https://github.com/idonafraid-create/GCW.git /path/to/GCW
 ```
 
-`web-shader-extractor` 负责 Canvas、WebGL、WebGPU、Shader 和渲染管线取证；`design-dna` 负责字体、间距、配色、布局、响应式和视觉效果分析。GCW 自带的盘点与对比脚本可以独立运行，但完整的创意网站复刻流程需要这两个 Skills。
-
-如果你的 Agent 使用自定义 Skills 根目录，请把两个文件夹安装到对应位置。本工作区固定使用单数形式的 `.agent/skills`；如果安装器建议使用 `.agents`，应取消自动安装并手动放入 `.agent/skills`，不要建立桥接目录。
-
-### 2. 安装 GCW
-
-把本仓库作为唯一源码，然后用目录联接或符号链接安装到 Agent 的 Skill 目录，文件夹名称保持为 `gcw`。
+然后把它链接到当前工作区使用的单数目录 `.agent/skills`。
 
 Windows PowerShell：
 
@@ -69,110 +67,116 @@ macOS 或 Linux：
 ln -s /path/to/GCW /path/to/your-workspace/.agent/skills/gcw
 ```
 
-安装后可以这样调用：
+### 2. 检查工具环境
 
-```text
-使用 $gcw，把这个经过授权的生产网站恢复为经过验证的本地项目：https://example.com/
-```
-
-### 3. 建立证据工作区
-
-```powershell
-New-Item -ItemType Directory D:\work\site-recovery
-python scripts\init_reconstruction.py D:\work\site-recovery `
-  --url https://example.com/
-```
-
-GCW 会在目标项目中建立 `.gcw/`，用于保存运行状态、Known Gaps、QA 场景、截图、Manifest 和报告。已有证据不会被静默覆盖。
-
-### 4. 盘点公开网站
-
-```powershell
+```bash
+cd /path/to/GCW
 npm install
 npm run install:browser
-node scripts\site_inventory.mjs `
-  --url https://example.com/ `
-  --out D:\work\site-recovery\.gcw\evidence\network\site-inventory.json
+python -m pip install -r requirements.txt
+npm run check
 ```
 
-归档资源前先检查盘点结果。需要移除查询参数中的敏感信息，并把抓取范围限制在已经授权的站点源内。
+`npm run check` 只检查运行依赖和配套 Skill 是否可发现。环境检查通过，不代表某个具体复刻项目已经完成。
 
-## 跨 Agent 使用
+发布 GCW 自身改动前，运行完整发布验证：
 
-只要 Agent 能读取 `SKILL.md`、执行 Python 和 Node.js，并且能找到联动 Skills，就可以编排 GCW 的完整流程。GCW 的核心脚本也能脱离 Agent 单独运行，因此其他自动化系统可以直接调用脚本。
-
-完整流程必须联动 `web-shader-extractor` 和 `design-dna`。`browser-qa` 属于可选增强，因为 GCW 已自带 Playwright 截图、路由 Smoke Test 和数值图像 Diff。运行 `npm run check` 可以同时检查两个必需 Skill 的路径、Playwright、Chromium、Pillow 和可选的 Blender。目录联接或符号链接只是安装方式，多个 Agent 仍然读取同一份项目源码。
-
-## 视觉验证
-
-在配置文件中定义源站和候选站的成对场景，然后运行：
-
-```powershell
-node scripts\capture_compare.mjs `
-  --config D:\work\site-recovery\.gcw\capture-scenarios.json `
-  --output D:\work\site-recovery\.gcw\results
-
-python scripts\batch_image_diff.py `
-  D:\work\site-recovery\.gcw\results `
-  --diff-dir D:\work\site-recovery\.gcw\results\diff
+```bash
+npm run verify
 ```
 
-截图工具会使用两个独立浏览器进程，并同步随机种子、Playwright Clock、视口、DPR 和页面就绪条件。GPU 驱动、视频、跨域 iframe、Worker 和合成器时间仍可能造成动态误差。这些区域应当单独记录，不能通过放宽所有阈值来掩盖。
+它会执行语法检查、本地 HTTP/Chromium 工作流测试、URL 与凭证边界测试、图像 Diff 门禁、CI 安装器测试和环境检查。
+
+### 3. 直接说出你想要的结果
+
+```text
+使用 $gcw 学习这个网站，确认它的真实实现，并输出技术拆解：https://example.com/
+```
+
+```text
+使用 $gcw 忠实复刻这个经过授权的公开网站，做成可运行的本地项目：https://example.com/
+```
+
+```text
+使用 $gcw 提取这个参考站的 Design DNA，再换成我的内容重新实现：https://example.com/
+```
+
+GCW 会先做一次简短预判，再决定工具、路径和交付范围。
+
+## 高级分析能力
+
+遇到复杂网站时，GCW 可以协调两个配套 Skill：
+
+- [web-shader-extractor](https://github.com/lixiaolin94/skills/tree/main/web-shader-extractor)：分析 Canvas、WebGL、WebGPU、Shader 和渲染管线。
+- [design-dna](https://github.com/zanwei/design-dna)：提取字体、间距、配色、布局、动效和视觉语言。
+
+请把它们安装到同一个单数 `.agent/skills` 根目录。GCW 自带的网站盘点、路由检查和截图对比脚本可以独立运行；GPU 深度取证与结构化设计提取需要对应的配套 Skill。
+
+## GCW 可以留下哪些成果
+
+- 可运行的本地项目和生产构建命令
+- `TEARDOWN.md`：经过核验的真实实现拆解
+- `DESIGN_DNA.json`：用于创意重建的设计身份
+- `REPLACE_GUIDE.md`：文字、媒体、配色、字体、模型和数据替换位置
+- `CLONE_REPORT.md`：原站与本地实现的差异、取舍和已知缺口
+- 路由与资源盘点结果
+- 桌面端和移动端对照截图、数值 Diff 和可视化报告
+- 可选的 GitHub Actions 截图回归
+
+具体产物由任务目标决定。一次技术学习不需要被强制套进生产恢复的全部取证流程。
 
 ## 工具清单
 
 | 脚本 | 用途 |
 |---|---|
-| `init_reconstruction.py` | 建立非破坏性的证据工作区 |
-| `site_inventory.mjs` | 盘点公开路由、资源、字体和渲染面 |
-| `capture_compare.mjs` | 在一致条件下截取源站和候选站状态 |
-| `batch_image_diff.py` | 输出指标、Diff 图、Markdown 和 JSON 报告 |
-| `route_smoke.py` | 检查公开预览路由与关键文字 |
-| `blender_replace_text.py` | 根据参考模型边界生成新的 GLTF 或 GLB 文字 |
-| `install_ci.py` | 安装 GCW Runner 和 GitHub Actions 截图门禁 |
+| `init_reconstruction.py` | 建立非破坏性的 `.gcw/` 项目记录 |
+| `site_inventory.mjs` | 盘点公开路由、资源、字体和渲染区域 |
+| `capture_compare.mjs` | 在一致条件下截取源站和本地版本状态 |
+| `batch_image_diff.py` | 生成指标、Diff 图和 Markdown/JSON 报告 |
+| `route_smoke.py` | 检查预览路由与代表性文字 |
+| `install_ci.py` | 安装 GCW 视觉回归 Runner 和工作流 |
+| `blender_replace_text.py` | 可选：处理已烘焙进 GLTF/GLB 几何体的文字 |
 
-完整工作流见 [SKILL.md](./SKILL.md)。[references](./references/) 中整理了恢复层级、Gate、QA 场景和依赖说明。
+Agent 完整流程见 [SKILL.md](./SKILL.md)。[references](./references/) 中定义了复刻模式、生产恢复策略、QA 场景、工具说明和专项情况。
+
+## 视觉验证
+
+定义源站和本地版本的对照场景，然后捕获并比较一致状态：
+
+```bash
+node scripts/capture_compare.mjs \
+  --config /project/.gcw/capture-scenarios.json \
+  --output /project/.gcw/results
+
+python scripts/batch_image_diff.py \
+  /project/.gcw/results \
+  --diff-dir /project/.gcw/results/diff
+```
+
+GCW 可以对齐随机种子、JavaScript 时间、视口、DPR、路由、鼠标位置、滚动和页面就绪条件。GPU 驱动、视频、跨域 iframe、Worker 和合成器时序仍可能产生噪声；应单独记录这些区域，而不是放宽全部阈值。
 
 ## 环境要求
 
-- Python 3.10 或更高版本
-- Node.js 20 或更高版本
-- Pillow，用于图像 Diff
-- Playwright 和 Chromium，用于资源盘点和截图
-- `web-shader-extractor` 和 `design-dna`，用于完整的高保真复刻流程
-- Blender 4.x 或更高版本，只在替换 3D 文字时需要
+- Python 3.10+
+- Node.js 20+
+- Pillow
+- Playwright 和 Chromium
+- Blender 4.x，仅用于可选的 3D 烘焙文字专项流程
 
-```powershell
-python -m pip install -r requirements.txt
-npm install
-npm run install:browser
-npm run check
-```
+## 安全与复用边界
 
-## 验证方式
-
-GCW 会把工具验证和网站验证分开。仓库会检查运行依赖、脚本语法、证据目录、路由 Smoke Test、图像 Diff 报告、CI 安装器和可选的 Blender 路径。
-
-每个恢复项目仍需单独定义就绪条件、交互矩阵、视觉阈值和 Known Gaps。GCW 工具检查通过，不代表某个具体网站已经恢复完成。
-
-## 安全与边界
-
-GCW 只用于你拥有或明确获得授权的网站。
+目标网站必须属于用户、具有符合用途的许可证，或者已经获得明确授权。
 
 - 不绕过登录、密码、付费墙或其他访问控制。
-- 不提交生产 Bundle 或配置中暴露的凭证。
-- 精确生产产物与可编辑近似实现分开保存。
-- 使用 `SOURCE`、`PARTIAL`、`GUESS` 标记事实等级。
-- 仍有 P0、P1 或 P2 问题时，不应宣布恢复完成。
+- 使用最终规范 URL；包含凭证的 URL 和离开配置 Origin 的文档重定向会在浏览器捕获前被拒绝。
+- 对外发布前，分别检查代码与图片、字体、模型等素材的许可。
+- 创意重建版本应移除追踪脚本和原站品牌残留。
+- 不提交线上 Bundle 或配置中暴露的凭证。
+- 在需要区分确定性时，用 `SOURCE`、`PARTIAL`、`GUESS` 标记技术结论。
 
 ## 致谢
 
-GCW 会调用两个 Companion Skills 完成专业分析：
-
-- [web-shader-extractor](https://github.com/lixiaolin94/skills/tree/main/web-shader-extractor)，由 [lixiaolin94](https://github.com/lixiaolin94) 维护，负责 WebGL、WebGPU、Canvas、Shader 和渲染管线取证。
-- [design-dna](https://github.com/zanwei/design-dna)，由 [zanwei](https://github.com/zanwei) 维护，负责设计 Token、视觉风格和特效的结构化提取。
-
-感谢两位维护者和所有贡献者公开这些 Skills。GCW 只把它们作为联动工作流调用，没有把上游源码打包进本仓库。两个上游项目均采用 MIT License，具体条款和更新以各自仓库为准。
+GCW 会协调独立维护的 `web-shader-extractor` 与 `design-dna` 工作流，但不打包它们的源码。许可证和最新更新以各自上游仓库为准。
 
 ## 许可证
 

@@ -1,0 +1,259 @@
+#!/usr/bin/env python3
+"""Release smoke tests for GCW's public command-line workflows."""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import subprocess
+import sys
+import tempfile
+import threading
+import unittest
+from contextlib import contextmanager
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+
+from PIL import Image
+
+
+ROOT = Path(__file__).resolve().parent.parent
+PYTHON = sys.executable
+NODE = "node"
+
+
+def run(*args: str, expect: int = 0, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+    result = subprocess.run(
+        args,
+        cwd=ROOT,
+        env={**os.environ, **(env or {})},
+        capture_output=True,
+        text=True,
+        timeout=90,
+    )
+    if result.returncode != expect:
+        raise AssertionError(
+            f"command returned {result.returncode}, expected {expect}: {' '.join(args)}\n"
+            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+    return result
+
+
+class FixtureHandler(BaseHTTPRequestHandler):
+    def do_GET(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
+        if self.path == "/redirect-external":
+            self.send_response(302)
+            self.send_header("Location", "http://127.0.0.1:65530/outside")
+            self.end_headers()
+            return
+        if self.path.startswith("/asset.js"):
+            body = b"window.fixtureLoaded = true;"
+            content_type = "text/javascript"
+        elif self.path == "/child":
+            body = b"<!doctype html><title>Child</title><h1>Child route</h1>"
+            content_type = "text/html"
+        elif self.path == "/missing":
+            self.send_error(404)
+            return
+        else:
+            body = b"""<!doctype html>
+<html><head><title>GCW fixture</title><script src='/asset.js?x-amz-signature=topsecret'></script></head>
+<body style='margin:0;background:#ff0000;min-height:100vh'><a href='/child'>Child</a>
+<canvas id='unused'></canvas><canvas id='used'></canvas>
+<script>document.querySelector('#used').getContext('2d'); setTimeout(() => { document.body.style.background = '#00ff00'; }, 1000);</script>
+</body></html>"""
+            content_type = "text/html"
+        self.send_response(200)
+        self.send_header("Content-Type", f"{content_type}; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, format: str, *args: object) -> None:
+        pass
+
+
+@contextmanager
+def fixture_server():
+    server = ThreadingHTTPServer(("127.0.0.1", 0), FixtureHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}"
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+
+class ReleaseSmokeTests(unittest.TestCase):
+    def test_skill_and_package_contract(self) -> None:
+        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+        self.assertTrue(skill.startswith("---\nname: gcw\n"))
+        for reference in re.findall(r"`references/([^`]+\.md)`", skill):
+            self.assertTrue((ROOT / "references" / reference).is_file(), reference)
+
+        metadata = (ROOT / "agents" / "openai.yaml").read_text(encoding="utf-8")
+        self.assertIn('$gcw', metadata)
+        short = re.search(r'^  short_description: "([^"]+)"$', metadata, re.M)
+        self.assertIsNotNone(short)
+        self.assertGreaterEqual(len(short.group(1)), 25)
+        self.assertLessEqual(len(short.group(1)), 64)
+
+        package = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
+        lock = json.loads((ROOT / "package-lock.json").read_text(encoding="utf-8"))
+        harness = json.loads((ROOT / "assets" / "gcw-package.json").read_text(encoding="utf-8"))
+        harness_lock = json.loads((ROOT / "assets" / "gcw-package-lock.json").read_text(encoding="utf-8"))
+        self.assertEqual(package["version"], lock["version"])
+        self.assertEqual(package["dependencies"]["playwright"], harness["dependencies"]["playwright"])
+        self.assertEqual(harness["dependencies"]["playwright"], harness_lock["packages"]["node_modules/playwright"]["version"])
+
+        workflows = [ROOT / ".github" / "workflows" / "ci.yml", ROOT / "assets" / "github-workflows" / "gcw-visual-regression.yml"]
+        for workflow in workflows:
+            content = workflow.read_text(encoding="utf-8")
+            self.assertIsNone(re.search(r"uses:\s+[^\s#]+@v\d+", content), workflow)
+
+    def test_init_is_non_destructive_and_rejects_secret_urls(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            run(PYTHON, "scripts/init_reconstruction.py", temp, "--url", "https://example.com/")
+            state_path = Path(temp) / ".gcw" / "run-state.json"
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            self.assertEqual(state["schemaVersion"], 3)
+            self.assertIn("cloneMode", state)
+            self.assertEqual(state["permissionBoundary"], "unconfirmed")
+            state_path.write_text('{"preserved": true}\n', encoding="utf-8")
+            run(PYTHON, "scripts/init_reconstruction.py", temp, "--url", "https://example.com/")
+            self.assertEqual(json.loads(state_path.read_text(encoding="utf-8")), {"preserved": True})
+            rejected = run(
+                PYTHON,
+                "scripts/init_reconstruction.py",
+                temp,
+                "--url",
+                "https://example.com/?token=secret",
+                expect=2,
+            )
+            self.assertIn("credential-like", rejected.stderr)
+
+    def test_ci_installer_is_reproducible_and_non_destructive(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            project = Path(temp)
+            run(PYTHON, "scripts/install_ci.py", temp, "--source-url", "https://example.com/")
+            package = json.loads((project / ".gcw" / "package.json").read_text(encoding="utf-8"))
+            lock = json.loads((project / ".gcw" / "package-lock.json").read_text(encoding="utf-8"))
+            self.assertEqual(package["dependencies"]["playwright"], "1.61.1")
+            self.assertEqual(lock["packages"]["node_modules/playwright"]["version"], "1.61.1")
+            self.assertTrue((project / ".gcw" / "tools" / "url_safety.mjs").exists())
+            self.assertTrue((project / ".gcw" / "tools" / "url_safety.py").exists())
+            self.assertEqual((project / ".gcw" / "requirements.txt").read_text(encoding="utf-8").strip(), "Pillow==12.2.0")
+            run(PYTHON, str(project / ".gcw" / "tools" / "route_smoke.py"), "--help")
+            copied_capture = run(NODE, str(project / ".gcw" / "tools" / "capture_compare.mjs"), expect=1)
+            self.assertIn("Usage: capture_compare.mjs", copied_capture.stderr)
+            scenario = project / ".gcw" / "capture-scenarios.json"
+            scenario.write_text('{"preserved": true}\n', encoding="utf-8")
+            run(PYTHON, "scripts/install_ci.py", temp, "--source-url", "https://example.com/")
+            self.assertEqual(json.loads(scenario.read_text(encoding="utf-8")), {"preserved": True})
+
+    def test_route_smoke_stays_on_base_origin(self) -> None:
+        with fixture_server() as base:
+            run(PYTHON, "scripts/route_smoke.py", "--base-url", base, "--route", "/", "--route", "/child")
+            rejected = run(
+                PYTHON,
+                "scripts/route_smoke.py",
+                "--base-url",
+                base,
+                "--route",
+                "https://example.com/",
+                expect=2,
+            )
+            self.assertIn("stay on the configured origin", rejected.stderr)
+            redirected = run(
+                PYTHON,
+                "scripts/route_smoke.py",
+                "--base-url",
+                base,
+                "--route",
+                "/redirect-external",
+                expect=1,
+            )
+            self.assertIn("redirect left the base origin", redirected.stdout)
+
+    def test_inventory_crawls_routes_and_redacts_resource_secrets(self) -> None:
+        with fixture_server() as base, tempfile.TemporaryDirectory() as temp:
+            out = Path(temp) / "inventory.json"
+            run(NODE, "scripts/site_inventory.mjs", "--url", base, "--out", str(out), "--settle-ms", "0")
+            report = json.loads(out.read_text(encoding="utf-8"))
+            self.assertEqual({item["route"] for item in report["routes"]}, {"/", "/child"})
+            serialized = json.dumps(report)
+            self.assertNotIn("topsecret", serialized)
+            self.assertIn("REDACTED", serialized)
+            canvases = report["routes"][0]["surface"]["canvases"]
+            self.assertEqual([canvas["context"] for canvas in canvases], ["unknown", "2d"])
+
+            redirected = Path(temp) / "redirected.json"
+            run(NODE, "scripts/site_inventory.mjs", "--url", f"{base}/redirect-external", "--out", str(redirected), "--settle-ms", "0")
+            redirect_report = json.loads(redirected.read_text(encoding="utf-8"))
+            self.assertIn("redirect left the allowed origin", redirect_report["routes"][0]["error"])
+
+    def test_capture_applies_phase_and_rejects_filename_collisions(self) -> None:
+        with fixture_server() as base, tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            config = {
+                "sourceUrl": base,
+                "candidateUrl": base,
+                "seed": 7,
+                "scenarios": [
+                    {
+                        "id": "phase",
+                        "route": "/",
+                        "viewport": {"width": 64, "height": 64},
+                        "clockMode": "controlled",
+                        "readyFunction": "document.readyState === 'complete'",
+                        "readyDelayMs": 0,
+                        "phaseMs": 1200,
+                        "afterInputDelayMs": 0,
+                    }
+                ],
+            }
+            config_path = root / "capture.json"
+            config_path.write_text(json.dumps(config), encoding="utf-8")
+            output = root / "results"
+            run(NODE, "scripts/capture_compare.mjs", "--config", str(config_path), "--output", str(output))
+            manifest = json.loads((output / "capture-manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["captures"][0]["timing"]["phaseMs"], 1200)
+            pixel = Image.open(output / "phase.source.png").convert("RGB").getpixel((32, 32))
+            self.assertGreater(pixel[1], 200)
+            self.assertLess(pixel[0], 30)
+
+            config["scenarios"] = [
+                {"id": "same id", "route": "/", "readyFunction": "true"},
+                {"id": "same-id", "route": "/", "readyFunction": "true"},
+            ]
+            config_path.write_text(json.dumps(config), encoding="utf-8")
+            rejected = run(
+                NODE,
+                "scripts/capture_compare.mjs",
+                "--config",
+                str(config_path),
+                "--output",
+                str(root / "collision"),
+                expect=1,
+            )
+            self.assertIn("id collision", rejected.stderr)
+
+    def test_image_diff_threshold_validation_and_batch_gate(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = root / "sample.source.png"
+            candidate = root / "sample.candidate.png"
+            Image.new("RGB", (8, 8), "#000000").save(source)
+            Image.new("RGB", (8, 8), "#000000").save(candidate)
+            run(PYTHON, "scripts/batch_image_diff.py", temp)
+            report = json.loads((root / "visual-diff-report.json").read_text(encoding="utf-8"))
+            self.assertTrue(report["passed"])
+            invalid = run(PYTHON, "scripts/image_diff.py", str(source), str(candidate), "--threshold", "256", expect=2)
+            self.assertIn("between 0 and 255", invalid.stderr)
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

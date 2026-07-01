@@ -57,6 +57,10 @@ def main() -> int:
     parser.add_argument("--report-json", type=Path)
     parser.add_argument("--report-md", type=Path)
     args = parser.parse_args()
+    if not 0 <= args.threshold <= 255:
+        parser.error("--threshold must be between 0 and 255")
+    if args.max_changed_pct < 0 or args.max_mean_abs < 0:
+        parser.error("diff thresholds must be zero or greater")
 
     root = args.results_dir.resolve()
     diff_dir = (args.diff_dir or root / "diff").resolve()
@@ -125,4 +129,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

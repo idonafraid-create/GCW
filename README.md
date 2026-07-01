@@ -1,59 +1,57 @@
 # GCW
 
-Recover an authorized deployed website into a local, deployable project with evidence you can inspect.
+Evidence-driven website cloning, technical teardown, and creative reconstruction.
 
 <p align="center">
   <strong>English</strong> · <a href="./README.zh-CN.md">简体中文</a>
 </p>
 
-<img src="./assets/banner.webp" alt="GCW — evidence-driven website recovery" width="100%">
+<img src="./assets/banner.webp" alt="GCW — evidence-driven website cloning" width="100%">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
-GCW stands for Gao Copy Website. It is an agent skill and a small toolkit for cases where a website owner has lost the source code but still controls the public production site.
+Found a website worth learning from? GCW helps an agent discover how it actually works, reproduce the important parts as a runnable local project, and verify the result in a real browser.
 
-GCW does not claim that minified browser artifacts are the original source. It records what came from production, what is only partially known, and what remains an informed guess. The result is a reproducible recovery project plus the evidence needed to test it.
+GCW prefers official source and observable runtime evidence over plausible-looking AI guesses. It keeps deployed artifacts, inferred behavior, and your editable implementation clearly separated.
 
-## What GCW recovers
+> Find evidence before implementation. Make it run before refactoring. Compare before polishing.
 
-- Public routes, HTML, styles, scripts, fonts, images, audio, models, and shader text
-- DOM, Canvas, WebGL, WebGPU, worker, iframe, and media surfaces
-- Inputs driven by time, pointer, scroll, viewport, theme, storage, and UI state
-- Desktop and mobile states with paired screenshots and numeric image diffs
-- Static deployment behavior, route smoke tests, and a screenshot regression workflow for GitHub Actions
+## What you can do
 
-Authenticated pages, private server logic, original comments, Git history, and credentials stay outside the recovery boundary.
+| Goal | Result |
+|---|---|
+| Learn how a site works | A technical teardown with evidence and transferable techniques |
+| Clone an excellent site | A runnable local project with route, responsive, interaction and visual checks |
+| Rebuild it as your own | Design DNA, replacement guidance and an original editable implementation |
+| Recover an owned deployed site | A verified replay or maintainable rebuild when source is unavailable |
 
-## Recovery tiers
+GCW covers static pages, React/Vue/Next content sites, multi-page marketing sites, animation-heavy experiences, and Canvas/WebGL/WebGPU frontends. Authentication, private server logic, payment, permissions and proprietary APIs are outside the default boundary.
 
-| Tier | Use it when | Result |
-|---|---|---|
-| `ARTIFACT_REPLAY` | Public production artifacts still run locally | A byte-preserving baseline that acts as the visual oracle |
-| `PIPELINE_REPLAY` | The render graph and runtime wiring can be reconstructed | A recovered WebGL or application pipeline |
-| `EDITABLE_REBUILD` | Maintainable source is the goal | Readable components checked against the verified baseline |
+Ordinary websites are first-class use cases. GCW's distinctive strength is that the same workflow can continue into motion-heavy, interaction-heavy and GPU-rendered sites without abandoning evidence or browser verification.
 
-<img src="./assets/features.webp" alt="GCW workflow: public evidence, recovery, verification, and deployment" width="100%">
+## How it works
 
-GCW normally establishes an artifact replay first. That prevents an editable rewrite from drifting while it is still being built.
+1. **Choose the goal** — teardown, faithful clone, creative rebuild, or production recovery.
+2. **Find the real implementation** — search official repositories, source maps and public deployment evidence before rebuilding.
+3. **Recon the site** — map routes, resources, breakpoints, interactions and advanced rendering surfaces.
+4. **Choose a path** — reuse licensed source, preserve a simple static site, rebuild templates, capture fixtures, or recover a render pipeline.
+5. **Build locally** — keep the reference separate while producing editable code.
+6. **Verify in a browser** — compare routes and matched desktop/mobile interaction states.
+7. **Deliver the learning** — leave a teardown, Design DNA, replacement guide or clone report when useful.
+
+<img src="./assets/features.webp" alt="GCW workflow: public evidence, local reconstruction, verification, and deployment" width="100%">
 
 ## Quick start
 
-### 1. Install the two companion skills
+### 1. Install GCW
 
-Install these specialist skills before using GCW for the complete high-fidelity workflow:
+Clone this repository as the canonical source:
 
 ```bash
-npx skills add https://github.com/lixiaolin94/skills/tree/main/web-shader-extractor
-npx skills add zanwei/design-dna
+git clone https://github.com/idonafraid-create/GCW.git /path/to/GCW
 ```
 
-`web-shader-extractor` covers Canvas, WebGL, WebGPU, shaders, and render pipelines. `design-dna` covers typography, spacing, palette, layout, responsive behavior, and visual effects. GCW's standalone inventory and comparison scripts can run without them, but the complete creative-site recovery workflow cannot.
-
-If your agent uses a custom skill root, install both folders there. This workspace uses the singular `.agent/skills` path. If an installer proposes `.agents` here, cancel and install manually into `.agent/skills`; do not create a bridge directory.
-
-### 2. Install GCW
-
-Keep this repository as the canonical source and link it into your agent's skill directory with the folder name `gcw`.
+Link it into the singular `.agent/skills` directory used by this workspace.
 
 Windows PowerShell:
 
@@ -69,110 +67,116 @@ macOS or Linux:
 ln -s /path/to/GCW /path/to/your-workspace/.agent/skills/gcw
 ```
 
-Then invoke the skill in your agent:
+### 2. Verify the toolkit
 
-```text
-Use $gcw to recover this authorized production website into a verified local project: https://example.com/
-```
-
-### 3. Create the evidence workspace
-
-```powershell
-New-Item -ItemType Directory D:\work\site-recovery
-python scripts\init_reconstruction.py D:\work\site-recovery `
-  --url https://example.com/
-```
-
-GCW creates a `.gcw/` directory for run state, known gaps, QA scenarios, screenshots, manifests, and reports. Existing evidence is not overwritten silently.
-
-### 4. Inventory the public site
-
-```powershell
+```bash
+cd /path/to/GCW
 npm install
 npm run install:browser
-node scripts\site_inventory.mjs `
-  --url https://example.com/ `
-  --out D:\work\site-recovery\.gcw\evidence\network\site-inventory.json
+python -m pip install -r requirements.txt
+npm run check
 ```
 
-Review the inventory before archiving resources. Remove secrets from query strings and keep the crawl inside the authorized origin.
+`npm run check` verifies runtime dependencies and companion-skill discovery. A passing environment check does not prove that a particular clone is complete.
 
-## Agent compatibility
+Before publishing changes to GCW itself, run the complete release suite:
 
-GCW can orchestrate the full workflow in an agent that loads `SKILL.md`, can run Python and Node.js, and has the companion skills available. The core scripts also work without an agent, so another automation system can call them directly.
-
-The full workflow requires `web-shader-extractor` and `design-dna`. `browser-qa` is an optional enhancement because GCW already includes Playwright capture, route smoke tests, and numeric image diff tooling. Run `npm run check` to verify the two required skill roots along with Playwright, Chromium, Pillow, and the optional Blender executable. A directory junction or symbolic link is a normal installation method; all linked agents still read the same repository files.
-
-## Visual verification
-
-Define paired source and candidate scenarios in a capture config, then run:
-
-```powershell
-node scripts\capture_compare.mjs `
-  --config D:\work\site-recovery\.gcw\capture-scenarios.json `
-  --output D:\work\site-recovery\.gcw\results
-
-python scripts\batch_image_diff.py `
-  D:\work\site-recovery\.gcw\results `
-  --diff-dir D:\work\site-recovery\.gcw\results\diff
+```bash
+npm run verify
 ```
 
-The capture runner uses separate browser processes, a shared random seed, Playwright Clock, matched viewport and DPR, and paired readiness checks. GPU drivers, video, cross-origin iframes, workers, and compositor timing can still introduce noise. Record those regions instead of weakening every threshold.
+This runs syntax checks, local HTTP/Chromium workflow tests, URL and credential-boundary tests, image-diff gates, CI-installer tests, and the environment check.
+
+### 3. Ask for the outcome you want
+
+```text
+Use $gcw to study this site, explain its real implementation, and produce a technical teardown: https://example.com/
+```
+
+```text
+Use $gcw to create a faithful local clone of this authorized public site: https://example.com/
+```
+
+```text
+Use $gcw to extract the design DNA and rebuild this reference with my own content: https://example.com/
+```
+
+The skill performs a short preflight before choosing the tools and scope.
+
+## Advanced analysis
+
+GCW can coordinate two companion skills when a project needs deeper analysis:
+
+- [web-shader-extractor](https://github.com/lixiaolin94/skills/tree/main/web-shader-extractor) for Canvas, WebGL, WebGPU, shaders and render pipelines.
+- [design-dna](https://github.com/zanwei/design-dna) for typography, spacing, palette, layout, motion and visual language.
+
+Install them in the same singular `.agent/skills` root. GCW's inventory, route checks and screenshot comparison scripts work without them; advanced GPU forensics and structured design extraction do not.
+
+## What GCW can leave behind
+
+- A runnable local project and production build command
+- `TEARDOWN.md` with verified implementation findings
+- `DESIGN_DNA.json` for a creative rebuild
+- `REPLACE_GUIDE.md` for text, media, color, font, model and data changes
+- `CLONE_REPORT.md` with source-versus-local differences and known gaps
+- Route and resource inventory
+- Matched desktop/mobile screenshots, numeric diffs and visual reports
+- Optional GitHub Actions screenshot regression
+
+The selected mode determines which outputs are useful. A one-off teardown should not be forced through production-recovery paperwork.
 
 ## Toolkit
 
 | Script | Purpose |
 |---|---|
-| `init_reconstruction.py` | Create a non-destructive evidence workspace |
-| `site_inventory.mjs` | Inventory public routes, resources, fonts, and rendering surfaces |
+| `init_reconstruction.py` | Create a non-destructive `.gcw/` project record |
+| `site_inventory.mjs` | Inventory public routes, resources, fonts and rendering surfaces |
 | `capture_compare.mjs` | Capture matched source and candidate states |
-| `batch_image_diff.py` | Generate metrics, diff images, and Markdown or JSON reports |
-| `route_smoke.py` | Check public preview routes and expected text |
-| `blender_replace_text.py` | Generate replacement GLTF or GLB text against reference bounds |
-| `install_ci.py` | Install the GCW runner and GitHub Actions screenshot gate |
+| `batch_image_diff.py` | Generate metrics, diff images and Markdown/JSON reports |
+| `route_smoke.py` | Check preview routes and representative text |
+| `install_ci.py` | Install the GCW visual-regression runner and workflow |
+| `blender_replace_text.py` | Optional playbook for text baked into GLTF/GLB geometry |
 
-Read [SKILL.md](./SKILL.md) for the full workflow. The files in [references](./references/) cover recovery tiers, gates, QA scenarios, and dependencies.
+Read [SKILL.md](./SKILL.md) for the agent workflow. The [references](./references/) directory defines clone modes, production-recovery strategies, QA scenarios, tooling and special cases.
+
+## Visual verification
+
+Define source and candidate scenarios, then capture and compare matched states:
+
+```bash
+node scripts/capture_compare.mjs \
+  --config /project/.gcw/capture-scenarios.json \
+  --output /project/.gcw/results
+
+python scripts/batch_image_diff.py \
+  /project/.gcw/results \
+  --diff-dir /project/.gcw/results/diff
+```
+
+GCW can align random seed, JavaScript time, viewport, DPR, route, pointer, scroll and readiness. GPU drivers, video, cross-origin frames, workers and compositor timing can still introduce noise; record those regions instead of weakening every threshold.
 
 ## Requirements
 
-- Python 3.10 or newer
-- Node.js 20 or newer
-- Pillow for image diffing
-- Playwright and a Chromium browser for inventory and capture
-- `web-shader-extractor` and `design-dna` for the complete high-fidelity workflow
-- Blender 4.x or newer only when replacing baked 3D text
+- Python 3.10+
+- Node.js 20+
+- Pillow
+- Playwright and Chromium
+- Blender 4.x only for the optional baked-3D-text playbook
 
-```powershell
-python -m pip install -r requirements.txt
-npm install
-npm run install:browser
-npm run check
-```
+## Safety and reuse
 
-## Validation
+Use GCW only when the target is owned by the user, licensed for the intended reuse, or explicitly authorized.
 
-GCW separates toolkit validation from website validation. The repository checks its runtime dependencies, script syntax, evidence scaffolding, route smoke tests, image diff reports, CI installer, and optional Blender path.
-
-Each recovered website still needs its own readiness condition, interaction matrix, visual thresholds, and known-gaps report. A passing toolkit check does not prove that a specific recovery is complete.
-
-## Safety and scope
-
-Use GCW only on websites you own or are authorized to recover.
-
-- Do not bypass authentication, passcodes, paywalls, or access controls.
+- Do not bypass authentication, passcodes, paywalls or other access controls.
+- Use the final canonical URL; credential-bearing URLs and cross-origin document redirects are rejected before browser capture.
+- Check code and asset licenses separately before publishing a clone or adaptation.
+- Remove tracking and original brand residue from creative rebuilds.
 - Do not commit credentials found in public bundles or configuration.
-- Keep exact production artifacts separate from editable approximations.
-- Label recovered facts as `SOURCE`, `PARTIAL`, or `GUESS`.
-- Do not call a recovery complete while a P0, P1, or P2 issue remains open.
+- Mark technical conclusions as `SOURCE`, `PARTIAL` or `GUESS` when certainty matters.
 
 ## Acknowledgments
 
-GCW uses two companion skills for specialist analysis:
-
-- [web-shader-extractor](https://github.com/lixiaolin94/skills/tree/main/web-shader-extractor), maintained by [lixiaolin94](https://github.com/lixiaolin94), provides the WebGL, WebGPU, Canvas, shader, and render-pipeline investigation workflow.
-- [design-dna](https://github.com/zanwei/design-dna), maintained by [zanwei](https://github.com/zanwei), provides structured extraction of design tokens, visual style, and effects.
-
-Thank you to both maintainers and their contributors for publishing these skills. GCW calls them as companion workflows and does not vendor their source code. Both upstream projects are available under the MIT License; follow their repositories for current terms and updates.
+GCW coordinates the independently maintained `web-shader-extractor` and `design-dna` workflows; it does not vendor their source. See the upstream repositories for current licenses and updates.
 
 ## License
 

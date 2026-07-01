@@ -1,4 +1,4 @@
 interface:
   display_name: "GCW"
-  short_description: "Evidence-driven production website reconstruction"
-  default_prompt: "Use $gcw to reconstruct this authorized deployed website into a verified local project."
+  short_description: "Evidence-driven website cloning and teardown"
+  default_prompt: "Use $gcw to study this public website, choose the right clone mode, and produce a verified local result."

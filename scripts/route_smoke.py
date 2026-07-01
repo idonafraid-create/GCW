@@ -7,8 +7,22 @@ import argparse
 import json
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.parse import urljoin
-from urllib.request import Request, urlopen
+from urllib.parse import urljoin, urlparse
+from urllib.request import HTTPRedirectHandler, Request, build_opener
+
+from url_safety import validate_public_url, validate_relative_route
+
+
+class SameOriginRedirectHandler(HTTPRedirectHandler):
+    def __init__(self, origin: tuple[str, str]) -> None:
+        super().__init__()
+        self.origin = origin
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # type: ignore[no-untyped-def]
+        target = urlparse(newurl)
+        if (target.scheme, target.netloc) != self.origin:
+            raise HTTPError(req.full_url, code, "redirect left the base origin", headers, fp)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
 def main() -> int:
@@ -20,6 +34,13 @@ def main() -> int:
     parser.add_argument("--out", type=Path)
     args = parser.parse_args()
 
+    try:
+        validate_public_url(args.base_url, "--base-url")
+    except ValueError as error:
+        parser.error(str(error))
+    base = urlparse(args.base_url)
+    opener = build_opener(SameOriginRedirectHandler((base.scheme, base.netloc)))
+
     checks = [{"route": route} for route in args.route]
     if args.manifest:
         loaded = json.loads(args.manifest.read_text(encoding="utf-8"))
@@ -30,12 +51,16 @@ def main() -> int:
     results = []
     for check in checks:
         route = check["route"] if isinstance(check, dict) else str(check)
+        try:
+            validate_relative_route(route, f"route '{route}'")
+        except ValueError as error:
+            parser.error(str(error))
         expected = check.get("contains") if isinstance(check, dict) else None
         url = urljoin(args.base_url.rstrip("/") + "/", route.lstrip("/"))
         result = {"route": route, "url": url, "status": None, "passed": False, "error": None}
         try:
-            request = Request(url, headers={"User-Agent": "GCW route smoke/1.0"})
-            with urlopen(request, timeout=args.timeout) as response:
+            request = Request(url, headers={"User-Agent": "GCW route smoke/1.1"})
+            with opener.open(request, timeout=args.timeout) as response:
                 body = response.read().decode("utf-8", errors="replace")
                 result["status"] = response.status
                 result["passed"] = response.status < 400 and (not expected or expected in body)
@@ -57,4 +82,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

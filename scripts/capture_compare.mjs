@@ -3,6 +3,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import { assertSameOriginRedirects, joinSameOrigin, parsePublicHttpUrl, sanitizeText, sanitizeUrl } from "./url_safety.mjs";
 
 const DEFAULT_CLOCK_START = "2026-06-30T00:00:00.000Z";
 
@@ -29,10 +30,6 @@ function safeId(value) {
   return value.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-|-$/g, "") || "scenario";
 }
 
-function joinUrl(base, route) {
-  return new URL(route || "/", base.endsWith("/") ? base : `${base}/`).href;
-}
-
 async function installSeededRandom(context, seed) {
   await context.addInitScript(({ runtimeSeed }) => {
     let state = Number(runtimeSeed) >>> 0;
@@ -44,6 +41,20 @@ async function installSeededRandom(context, seed) {
       return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
     };
   }, { runtimeSeed: seed });
+}
+
+async function installNavigationGuard(context, allowedOrigin) {
+  await context.route("**/*", async (route) => {
+    const request = route.request();
+    if (request.resourceType() === "document") {
+      const target = new URL(request.url());
+      if (target.origin !== allowedOrigin) {
+        await route.abort("blockedbyclient");
+        return;
+      }
+    }
+    await route.continue();
+  });
 }
 
 async function initializePage(page, url, scenario) {
@@ -70,6 +81,11 @@ async function isReady(page, scenario) {
 async function advancePair(sourcePage, candidatePage, milliseconds) {
   if (milliseconds <= 0) return;
   await Promise.all([sourcePage.clock.runFor(milliseconds), candidatePage.clock.runFor(milliseconds)]);
+}
+
+async function waitPair(sourcePage, candidatePage, milliseconds) {
+  if (milliseconds <= 0) return;
+  await Promise.all([sourcePage.waitForTimeout(milliseconds), candidatePage.waitForTimeout(milliseconds)]);
 }
 
 async function waitForPairedReadiness(sourcePage, candidatePage, scenario) {
@@ -125,10 +141,17 @@ async function main() {
   if (!sourceUrl || !candidateUrl || !Array.isArray(config.scenarios) || !config.scenarios.length) {
     throw new Error("Config requires sourceUrl, candidateUrl and a non-empty scenarios array");
   }
+  parsePublicHttpUrl(sourceUrl, "sourceUrl");
+  parsePublicHttpUrl(candidateUrl, "candidateUrl");
+  const ids = new Set();
   for (const scenario of config.scenarios) {
     if (!scenario.readySelector && !scenario.readyFunction) {
       throw new Error(`Scenario '${scenario.id || scenario.route || "unnamed"}' requires readySelector or readyFunction`);
     }
+    const id = safeId(scenario.id || scenario.route || "scenario");
+    if (ids.has(id)) throw new Error(`Scenario id collision after filename sanitization: '${id}'`);
+    ids.add(id);
+    joinSameOrigin(sourceUrl, scenario.route || "/", `Scenario '${id}' route`);
   }
 
   const { chromium } = await loadPlaywright();
@@ -142,8 +165,8 @@ async function main() {
   const manifest = {
     schemaVersion: 2,
     generatedAt: new Date().toISOString(),
-    sourceUrl,
-    candidateUrl,
+    sourceUrl: sanitizeUrl(sourceUrl),
+    candidateUrl: sanitizeUrl(candidateUrl),
     seed: config.seed ?? 1,
     captures: [],
   };
@@ -165,24 +188,33 @@ async function main() {
         await Promise.all([
           installSeededRandom(sourceContext, config.seed ?? 1),
           installSeededRandom(candidateContext, config.seed ?? 1),
+          installNavigationGuard(sourceContext, new URL(sourceUrl).origin),
+          installNavigationGuard(candidateContext, new URL(candidateUrl).origin),
         ]);
         const route = scenario.route || "/";
-        const sourceTarget = joinUrl(sourceUrl, route);
-        const candidateTarget = joinUrl(candidateUrl, route);
+        const sourceTarget = joinSameOrigin(sourceUrl, route, `Scenario '${id}' source route`);
+        const candidateTarget = joinSameOrigin(candidateUrl, route, `Scenario '${id}' candidate route`);
+        await Promise.all([
+          assertSameOriginRedirects(sourceTarget, new URL(sourceUrl).origin, `Scenario '${id}' source`, scenario.timeoutMs || 30000),
+          assertSameOriginRedirects(candidateTarget, new URL(candidateUrl).origin, `Scenario '${id}' candidate`, scenario.timeoutMs || 30000),
+        ]);
         const [sourcePage, candidatePage] = await Promise.all([sourceContext.newPage(), candidateContext.newPage()]);
         const [sourceMeta, candidateMeta] = await Promise.all([
           initializePage(sourcePage, sourceTarget, scenario),
           initializePage(candidatePage, candidateTarget, scenario),
         ]);
         const timing = await waitForPairedReadiness(sourcePage, candidatePage, scenario);
+        const phaseMs = scenario.phaseMs ?? 0;
+        if (!Number.isFinite(phaseMs) || phaseMs < 0) throw new Error(`Scenario '${id}' phaseMs must be zero or greater`);
+        if (timing.clockMode === "controlled") await advancePair(sourcePage, candidatePage, phaseMs);
+        else await waitPair(sourcePage, candidatePage, phaseMs);
         await Promise.all([applyInput(sourcePage, scenario), applyInput(candidatePage, scenario)]);
+        const afterInputDelayMs = scenario.afterInputDelayMs ?? 100;
+        if (!Number.isFinite(afterInputDelayMs) || afterInputDelayMs < 0) throw new Error(`Scenario '${id}' afterInputDelayMs must be zero or greater`);
         if (timing.clockMode === "controlled") {
-          await advancePair(sourcePage, candidatePage, scenario.afterInputDelayMs ?? 100);
+          await advancePair(sourcePage, candidatePage, afterInputDelayMs);
         } else {
-          await Promise.all([
-            sourcePage.waitForTimeout(scenario.afterInputDelayMs ?? 100),
-            candidatePage.waitForTimeout(scenario.afterInputDelayMs ?? 100),
-          ]);
+          await waitPair(sourcePage, candidatePage, afterInputDelayMs);
         }
 
         const sourcePath = path.join(outputDir, `${id}.source.png`);
@@ -197,11 +229,11 @@ async function main() {
           route,
           viewport: scenario.viewport || { width: 1280, height: 720 },
           deviceScaleFactor: scenario.deviceScaleFactor || 1,
-          timing,
+          timing: { ...timing, phaseMs, afterInputDelayMs },
           scroll: scenario.scroll || { x: 0, y: 0 },
           pointer: scenario.pointer || null,
-          source: { ...sourceMeta, image: path.basename(sourcePath) },
-          candidate: { ...candidateMeta, image: path.basename(candidatePath) },
+          source: { ...sourceMeta, finalUrl: sanitizeUrl(sourceMeta.finalUrl), image: path.basename(sourcePath) },
+          candidate: { ...candidateMeta, finalUrl: sanitizeUrl(candidateMeta.finalUrl), image: path.basename(candidatePath) },
         });
       } finally {
         await Promise.all([sourceContext.close(), candidateContext.close()]);
@@ -217,7 +249,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(error.stack || error.message);
+  console.error(sanitizeText(error.stack || error.message));
   process.exitCode = 1;
 });
-

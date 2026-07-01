@@ -68,6 +68,8 @@ def main() -> int:
         parser.error(f"font not found: {args.font}")
     if args.output.suffix.lower() not in {".glb", ".gltf"}:
         parser.error("--output must end with .glb or .gltf")
+    if args.reference and args.reference.resolve() == args.output.resolve():
+        parser.error("--output must not overwrite --reference")
 
     clear_scene()
     reference_bounds = import_reference(args.reference.resolve()) if args.reference else None
@@ -137,4 +139,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

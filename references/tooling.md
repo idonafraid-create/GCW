@@ -37,6 +37,7 @@ This greatly reduces dynamic noise but cannot guarantee a zero diff for GPU driv
 ## Safety
 
 - Crawl only routes inside the authorized origin unless the user expands scope.
+- Use the final canonical URL. GCW performs a manual redirect-chain preflight and rejects document redirects that leave the configured origin.
 - Do not submit forms, guess passcodes or bypass access controls.
 - Inventory scripts collect URLs and metadata; they do not archive private responses.
 - Review manifests for query strings or secrets before committing.

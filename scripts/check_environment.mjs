@@ -76,15 +76,15 @@ const skillRoots = [...new Set(skillRootCandidates.filter(Boolean))].map(inspect
 const blender = findBlender();
 
 const report = {
-  passed: nodeMajor >= 20 && python.ok && pillow.ok && playwright.ok && skillRoots.some((item) => item.complete),
+  passed: nodeMajor >= 20 && python.ok && pillow.ok && playwright.ok,
   required: {
     node: { ok: nodeMajor >= 20, version: process.versions.node },
     python,
     pillow,
     playwright,
-    companionSkills: { ok: skillRoots.some((item) => item.complete), roots: skillRoots },
   },
   optional: {
+    companionSkills: { ok: skillRoots.some((item) => item.complete), roots: skillRoots, requiredFor: "advanced GPU forensics and structured design extraction" },
     blender: { ok: Boolean(blender), executable: blender, requiredFor: "GLTF or GLB text replacement only" },
   },
 };

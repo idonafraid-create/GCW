@@ -2,6 +2,8 @@
 
 Use fixed conditions for source and candidate: viewport, DPR, browser/backend, theme, route, crop, readiness, pointer, scroll, random seed and time phase. Put these values in the capture scenario JSON rather than relying on operator memory.
 
+Apply the full matrix to `FAITHFUL_CLONE`, maintained `CREATIVE_REBUILD` projects and `PRODUCTION_RECOVERY`. For `TEARDOWN`, capture only the states needed to support the technical claims made in the deliverable.
+
 Minimum matrix:
 
 | Surface | Required scenarios |
