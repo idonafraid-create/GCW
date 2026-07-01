@@ -176,6 +176,8 @@ Use GCW only when the target is owned by the user, licensed for the intended reu
 
 ## Acknowledgments
 
+GCW's first reconstruction benchmark and production-recovery case used [haoqi.design](https://haoqi.design/) as its public reference. Thanks to its creator, Haoqi Wen, whose site provided a real-world test bed for route recovery, WebGL forensics, deterministic visual comparison, and the baked 3D-text workflow. GCW is an independent project; this acknowledgment credits the reference work, not authorship of this repository.
+
 GCW coordinates the independently maintained `web-shader-extractor` and `design-dna` workflows; it does not vendor their source. See the upstream repositories for current licenses and updates.
 
 ## License
