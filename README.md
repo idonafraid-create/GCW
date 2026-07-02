@@ -4,6 +4,8 @@
   <strong>English</strong> · <a href="./README.zh-CN.md">简体中文</a>
 </p>
 
+<p align="center">GCW is an agent skill that tears down, clones, and rebuilds websites, with verifiable evidence at every phase.</p>
+
 <img src="./assets/banner.webp" alt="GCW — evidence-driven website cloning" width="100%">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
@@ -19,6 +21,10 @@
 > Evidence-driven teardown, faithful cloning, and creative reconstruction. Built on structured Design DNA and WebGL forensics, with a verifiable artifact at every step.
 >
 > Prove it. Specify it. Rebuild it.
+
+GCW stands for Gao Copy Website. Yes, the name is that literal. The tooling is not:
+
+feed it a website. It returns evidence, a spec, and a project that runs.
 
 ## What you can do
 

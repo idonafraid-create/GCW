@@ -4,6 +4,8 @@
   <a href="./README.md">English</a> · <strong>简体中文</strong>
 </p>
 
+<p align="center">GCW 是一个 Agent Skill：拆解、复刻、重建网站，每一阶段都有可验证的证据。</p>
+
 <img src="./assets/banner.webp" alt="GCW — 以证据驱动的网站复刻" width="100%">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
@@ -19,6 +21,10 @@
 > 证据驱动的拆解、忠实复刻与创意重建。底层是结构化 Design DNA 与 WebGL 取证，每一步都留下可验证的产物。
 >
 > 先证明，再定规格，最后重建。
+
+GCW 就是 Gao Copy Website。对，名字就这么直白。工具不直白：
+
+喂它一个网站。吐出证据、规格、和一个能跑的项目。
 
 ## 你可以用 GCW 做什么
 
