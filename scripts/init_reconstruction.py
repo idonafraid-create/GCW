@@ -11,7 +11,15 @@ from urllib.parse import urlparse
 from url_safety import validate_public_url, validate_relative_route
 
 
-EVIDENCE_DIRS = ("screenshots", "dom", "network", "runtime", "source", "gpu")
+EVIDENCE_DIRS = (
+    "screenshots/desktop",
+    "screenshots/mobile",
+    "dom",
+    "network",
+    "runtime",
+    "source",
+    "gpu",
+)
 
 
 def write_if_missing(path: Path, content: str) -> bool:
@@ -28,6 +36,11 @@ def main() -> int:
     parser.add_argument("--url", required=True)
     parser.add_argument("--route", action="append", default=[])
     parser.add_argument("--authorization", choices=("unconfirmed", "owned", "licensed", "authorized"), default="unconfirmed")
+    parser.add_argument("--outcome", choices=("teardown", "faithful-clone", "creative-rebuild"), default="teardown")
+    parser.add_argument("--site-type", default="unknown")
+    parser.add_argument("--source-availability", choices=("unknown", "available", "unavailable", "damaged"), default="unknown")
+    parser.add_argument("--baseline-scope", default="to-confirm")
+    parser.add_argument("--implementation-path", choices=("", "SOURCE_ADAPT", "CLEAN_REBUILD", "PRODUCTION_RECOVERY"), default="")
     args = parser.parse_args()
 
     try:
@@ -36,6 +49,10 @@ def main() -> int:
             validate_relative_route(route, "--route")
     except ValueError as error:
         parser.error(str(error))
+    if args.implementation_path == "PRODUCTION_RECOVERY" and (
+        args.authorization == "unconfirmed" or args.source_availability not in {"unavailable", "damaged"}
+    ):
+        parser.error("PRODUCTION_RECOVERY requires confirmed authorization and unavailable or damaged source")
     parsed = urlparse(args.url)
 
     workspace = args.workspace.resolve()
@@ -51,12 +68,25 @@ def main() -> int:
 
     routes = args.route or [parsed.path or "/"]
     state = {
-        "schemaVersion": 3,
+        "schemaVersion": 4,
         "skill": "gcw",
         "sourceUrl": args.url,
         "permissionBoundary": args.authorization,
         "routes": routes,
-        "state": "SCOPE",
+        "outcome": args.outcome,
+        "currentPhase": "TEARDOWN_PHASE",
+        "siteType": args.site_type,
+        "ownershipAuthorization": args.authorization,
+        "sourceAvailability": args.source_availability,
+        "baselineScope": args.baseline_scope,
+        "implementationPath": args.implementation_path,
+        "approximateOrExcludedScope": [],
+        "conditionalGates": {
+            "runtimeIndependence": args.implementation_path == "CLEAN_REBUILD" or args.outcome == "creative-rebuild",
+            "assetProvenance": "enable-when-asset-heavy-offline-or-maintained",
+            "recovery": args.implementation_path == "PRODUCTION_RECOVERY",
+        },
+        "state": "TEARDOWN_PHASE",
         "gates": {
             "scope": False,
             "discovery": False,
@@ -66,8 +96,7 @@ def main() -> int:
             "projectVerified": False,
             "automationReady": False,
         },
-        "cloneMode": "",
-        "implementationPath": "",
+        "cloneMode": "",  # v1.1 readers may still expect this key.
         "recoveryStrategy": "",
         "blockingUnknowns": [],
         "evidence": [],
@@ -99,6 +128,10 @@ def main() -> int:
     created = []
     files = {
         root / "run-state.json": json.dumps(state, indent=2) + "\n",
+        root / "SITE_SPEC.md": (Path(__file__).resolve().parent.parent / "assets" / "site-spec-template.md").read_text(encoding="utf-8"),
+        evidence / "site-inventory.json": "{}\n",
+        evidence / "route-map.json": "{}\n",
+        evidence / "interaction-states.json": "{}\n",
         root / "known-gaps.md": "# Known gaps\n\n| Gap | Severity | Evidence | Impact | Next step |\n|---|---|---|---|---|\n",
         root / "qa-matrix.md": "# QA matrix\n\n| Scenario | Source | Candidate | Conditions | Result |\n|---|---|---|---|---|\n",
         root / "config" / "capture-scenarios.json": json.dumps(scenarios, indent=2) + "\n",

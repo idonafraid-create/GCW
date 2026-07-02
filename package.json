@@ -1,6 +1,6 @@
 {
   "name": "gcw-skill",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "description": "Evidence-driven website cloning, technical teardown, and reconstruction toolkit",
   "type": "module",
@@ -9,7 +9,7 @@
   },
   "scripts": {
     "check": "node scripts/check_environment.mjs",
-    "check:syntax": "node --check scripts/url_safety.mjs && node --check scripts/site_inventory.mjs && node --check scripts/capture_compare.mjs && node --check scripts/check_environment.mjs",
+    "check:syntax": "node --check scripts/url_safety.mjs && node --check scripts/site_inventory.mjs && node --check scripts/capture_compare.mjs && node --check scripts/check_environment.mjs && python -m compileall -q scripts",
     "test": "python tests/release_smoke.py",
     "verify": "npm run check:syntax && npm test && npm run check",
     "install:browser": "playwright install chromium"

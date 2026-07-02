@@ -31,13 +31,18 @@ Ordinary websites are first-class use cases. GCW's distinctive strength is that 
 
 ## How it works
 
-1. **Choose the goal** — teardown, faithful clone, creative rebuild, or production recovery.
-2. **Find the real implementation** — search official repositories, source maps and public deployment evidence before rebuilding.
-3. **Recon the site** — map routes, resources, breakpoints, interactions and advanced rendering surfaces.
-4. **Choose a path** — reuse licensed source, preserve a simple static site, rebuild templates, capture fixtures, or recover a render pipeline.
-5. **Build locally** — keep the reference separate while producing editable code.
-6. **Verify in a browser** — compare routes and matched desktop/mobile interaction states.
-7. **Deliver the learning** — leave a teardown, Design DNA, replacement guide or clone report when useful.
+```text
+TEARDOWN_PHASE -> FAITHFUL_CLONE -> REVIEW_GATE -> CREATIVE_REBUILD
+```
+
+Every task starts with teardown and `.gcw/SITE_SPEC.md`. A study can stop there. Build tasks establish a scoped faithful baseline, then stop at `REVIEW_GATE` so the user can request more fidelity, accept the clone, or approve a creative rebuild.
+
+| User outcome | Workflow | Implementation path |
+|---|---|---|
+| Study the site | Stop after `TEARDOWN_PHASE` | Evidence only |
+| Faithful result | Continue through `FAITHFUL_CLONE`, then review | `SOURCE_ADAPT` or `CLEAN_REBUILD` |
+| Creative result | Accept a faithful baseline, then create a creative brief | Baseline path, then original implementation |
+| Recover an owned site with unusable source | Enable recovery inside the faithful phase | `PRODUCTION_RECOVERY` configuration |
 
 <img src="./assets/features.webp" alt="GCW workflow: public evidence, local reconstruction, verification, and deployment" width="100%">
 
@@ -115,6 +120,7 @@ Install them in the same singular `.agent/skills` root. GCW's inventory, route c
 ## What GCW can leave behind
 
 - A runnable local project and production build command
+- `.gcw/SITE_SPEC.md` and fixed route, interaction, network and screenshot evidence
 - `TEARDOWN.md` with verified implementation findings
 - `DESIGN_DNA.json` for a creative rebuild
 - `REPLACE_GUIDE.md` for text, media, color, font, model and data changes
@@ -123,7 +129,7 @@ Install them in the same singular `.agent/skills` root. GCW's inventory, route c
 - Matched desktop/mobile screenshots, numeric diffs and visual reports
 - Optional GitHub Actions screenshot regression
 
-The selected mode determines which outputs are useful. A one-off teardown should not be forced through production-recovery paperwork.
+Recovery provenance and replay paperwork applies only when ownership/authorization is confirmed and maintainable source is unavailable.
 
 ## Toolkit
 
@@ -135,9 +141,12 @@ The selected mode determines which outputs are useful. A one-off teardown should
 | `batch_image_diff.py` | Generate metrics, diff images and Markdown/JSON reports |
 | `route_smoke.py` | Check preview routes and representative text |
 | `install_ci.py` | Install the GCW visual-regression runner and workflow |
+| `advance_workflow.py` | Record valid phase and review-gate transitions |
+| `download_assets.py` | Reproducibly download authorized manifest assets |
+| `check_runtime_independence.py` | Gate undeclared source-origin runtime requests |
 | `blender_replace_text.py` | Optional playbook for text baked into GLTF/GLB geometry |
 
-Read [SKILL.md](./SKILL.md) for the agent workflow. The [references](./references/) directory defines clone modes, production-recovery strategies, QA scenarios, tooling and special cases.
+Read [SKILL.md](./SKILL.md) for the agent workflow. The [references](./references/) directory defines phases, SITE_SPEC, provenance, runtime independence, recovery, QA, tooling and special cases.
 
 ## Visual verification
 

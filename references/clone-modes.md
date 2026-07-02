@@ -1,43 +1,29 @@
-# Clone modes
+# Workflow phases and outcomes
 
-Choose the user's goal before choosing tools. The mode defines what evidence, implementation and deliverables are proportionate.
+GCW uses one staged workflow, not four parallel modes:
 
-## TEARDOWN
+```text
+TEARDOWN_PHASE -> FAITHFUL_CLONE -> REVIEW_GATE -> CREATIVE_REBUILD
+```
 
-Use when the user primarily wants to learn how a site works.
+`TEARDOWN_PHASE` is mandatory. A study-only task stops there and may be described externally as `TEARDOWN`. `FAITHFUL_CLONE` may be the final outcome or the baseline for later creative work. Never enter `CREATIVE_REBUILD` until the user accepts the baseline at `REVIEW_GATE`.
 
-- Identify the real stack, page structure, motion system and advanced rendering surfaces.
-- Separate transferable techniques from site-specific code, branding and assets.
-- Produce `TEARDOWN.md`; a runnable clone is optional.
-- Verify every important claim against source or runtime evidence.
+## Visible preflight
 
-## FAITHFUL_CLONE
+Show `Outcome`, `Current phase`, `Site type`, `Ownership/authorization`, `Source availability`, `Baseline scope`, `Implementation path`, and `Approximate or excluded scope`. Ask one path-changing question when intent or authorization is ambiguous. Record scope changes.
 
-Use when observable fidelity is the main result.
+## Faithful implementation paths
 
-- Preserve in-scope layout, routes, responsive behavior and interaction states.
-- Prefer official reusable source; otherwise reconstruct from public runtime evidence.
-- Keep reference artifacts separate from editable code.
-- Produce a runnable project and `CLONE_REPORT.md` with known gaps.
+| Condition | Path |
+|---|---|
+| Reusable official source is legally available | `SOURCE_ADAPT` |
+| Public evidence is sufficient for a clean implementation | `CLEAN_REBUILD` |
+| User confirms ownership/authorization and maintainable source is unavailable | `PRODUCTION_RECOVERY` |
 
-## CREATIVE_REBUILD
+`PRODUCTION_RECOVERY` is a conditional recovery configuration, never a user-facing parallel mode. Read `recovery-tiers.md` and `gates.md` only when both recovery conditions are met.
 
-Use when the user wants to learn from a reference and make a distinct site.
+## Review gate choices
 
-- Extract the useful information architecture, rhythm, interaction grammar and visual principles.
-- Replace the original brand, copy and restricted assets.
-- Use Design DNA as a specification for a new implementation, not as evidence of byte-level fidelity.
-- Produce `DESIGN_DNA.json`, a runnable project and `REPLACE_GUIDE.md` when replacement points are non-obvious.
-
-## PRODUCTION_RECOVERY
-
-Use when an owned deployed site must be recovered because maintainable source is missing or unusable.
-
-- Preserve production artifacts and provenance when they are needed as a recovery oracle.
-- Read `recovery-tiers.md` and select the appropriate replay or rebuild strategy.
-- Require route, state and deployment verification plus a complete known-gaps record.
-- Add CI screenshot regression when the recovered project will be maintained.
-
-## Switching modes
-
-A project may start as `TEARDOWN` and continue as `CREATIVE_REBUILD` or `FAITHFUL_CLONE`. Record the switch instead of silently expanding scope. `PRODUCTION_RECOVERY` is not the default escalation path for ordinary learning projects.
+- Fidelity insufficient: return to `FAITHFUL_CLONE`.
+- Baseline accepted as final: stop.
+- Baseline accepted for innovation: create `.gcw/CREATIVE_BRIEF.md`, then enter `CREATIVE_REBUILD`.

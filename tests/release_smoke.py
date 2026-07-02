@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import re
 import subprocess
@@ -47,7 +48,10 @@ class FixtureHandler(BaseHTTPRequestHandler):
             self.send_header("Location", "http://127.0.0.1:65530/outside")
             self.end_headers()
             return
-        if self.path.startswith("/asset.js"):
+        if self.path == "/asset.bin":
+            body = b"gcw-asset"
+            content_type = "application/octet-stream"
+        elif self.path.startswith("/asset.js"):
             body = b"window.fixtureLoaded = true;"
             content_type = "text/javascript"
         elif self.path == "/child":
@@ -108,6 +112,15 @@ class ReleaseSmokeTests(unittest.TestCase):
         self.assertEqual(package["version"], lock["version"])
         self.assertEqual(package["dependencies"]["playwright"], harness["dependencies"]["playwright"])
         self.assertEqual(harness["dependencies"]["playwright"], harness_lock["packages"]["node_modules/playwright"]["version"])
+        self.assertEqual(package["version"], "1.2.0")
+
+        flow = "TEARDOWN_PHASE -> FAITHFUL_CLONE -> REVIEW_GATE -> CREATIVE_REBUILD"
+        self.assertIn(flow, (ROOT / "README.md").read_text(encoding="utf-8"))
+        self.assertIn(flow, (ROOT / "README.zh-CN.md").read_text(encoding="utf-8"))
+        self.assertIn("SITE_SPEC.md", skill)
+        self.assertIn("Stop at REVIEW_GATE", skill)
+        for asset in ("site-spec-template.md", "creative-brief-template.md", "asset-manifest.example.json"):
+            self.assertTrue((ROOT / "assets" / asset).is_file(), asset)
 
         workflows = [ROOT / ".github" / "workflows" / "ci.yml", ROOT / "assets" / "github-workflows" / "gcw-visual-regression.yml"]
         for workflow in workflows:
@@ -119,9 +132,17 @@ class ReleaseSmokeTests(unittest.TestCase):
             run(PYTHON, "scripts/init_reconstruction.py", temp, "--url", "https://example.com/")
             state_path = Path(temp) / ".gcw" / "run-state.json"
             state = json.loads(state_path.read_text(encoding="utf-8"))
-            self.assertEqual(state["schemaVersion"], 3)
+            self.assertEqual(state["schemaVersion"], 4)
             self.assertIn("cloneMode", state)
             self.assertEqual(state["permissionBoundary"], "unconfirmed")
+            self.assertEqual(state["currentPhase"], "TEARDOWN_PHASE")
+            self.assertEqual(state["outcome"], "teardown")
+            self.assertEqual(state["conditionalGates"]["assetProvenance"], "enable-when-asset-heavy-offline-or-maintained")
+            gcw = Path(temp) / ".gcw"
+            self.assertTrue((gcw / "SITE_SPEC.md").is_file())
+            self.assertTrue((gcw / "evidence" / "screenshots" / "desktop").is_dir())
+            for name in ("site-inventory.json", "route-map.json", "interaction-states.json"):
+                self.assertTrue((gcw / "evidence" / name).is_file())
             state_path.write_text('{"preserved": true}\n', encoding="utf-8")
             run(PYTHON, "scripts/init_reconstruction.py", temp, "--url", "https://example.com/")
             self.assertEqual(json.loads(state_path.read_text(encoding="utf-8")), {"preserved": True})
@@ -134,6 +155,12 @@ class ReleaseSmokeTests(unittest.TestCase):
                 expect=2,
             )
             self.assertIn("credential-like", rejected.stderr)
+            recovery = run(
+                PYTHON, "scripts/init_reconstruction.py", temp,
+                "--url", "https://example.com/", "--implementation-path", "PRODUCTION_RECOVERY",
+                expect=2,
+            )
+            self.assertIn("requires confirmed authorization", recovery.stderr)
 
     def test_ci_installer_is_reproducible_and_non_destructive(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -145,6 +172,7 @@ class ReleaseSmokeTests(unittest.TestCase):
             self.assertEqual(lock["packages"]["node_modules/playwright"]["version"], "1.61.1")
             self.assertTrue((project / ".gcw" / "tools" / "url_safety.mjs").exists())
             self.assertTrue((project / ".gcw" / "tools" / "url_safety.py").exists())
+            self.assertTrue((project / ".gcw" / "tools" / "check_runtime_independence.py").exists())
             self.assertEqual((project / ".gcw" / "requirements.txt").read_text(encoding="utf-8").strip(), "Pillow==12.2.0")
             run(PYTHON, str(project / ".gcw" / "tools" / "route_smoke.py"), "--help")
             copied_capture = run(NODE, str(project / ".gcw" / "tools" / "capture_compare.mjs"), expect=1)
@@ -253,6 +281,47 @@ class ReleaseSmokeTests(unittest.TestCase):
             self.assertTrue(report["passed"])
             invalid = run(PYTHON, "scripts/image_diff.py", str(source), str(candidate), "--threshold", "256", expect=2)
             self.assertIn("between 0 and 255", invalid.stderr)
+
+    def test_workflow_requires_review_gate_before_creative(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            run(PYTHON, "scripts/init_reconstruction.py", temp, "--url", "https://example.com/")
+            invalid = run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "CREATIVE_REBUILD", expect=2)
+            self.assertIn("invalid transition", invalid.stderr)
+            run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "FAITHFUL_CLONE")
+            run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "REVIEW_GATE")
+            run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "CREATIVE_REBUILD")
+            self.assertTrue((Path(temp) / ".gcw" / "CREATIVE_BRIEF.md").is_file())
+
+    def test_runtime_independence_blocks_source_origin(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            evidence = Path(temp) / "network.json"
+            evidence.write_text(json.dumps({"requests": ["https://source.example/app.js", "https://cdn.example/a.js"]}), encoding="utf-8")
+            blocked = run(PYTHON, "scripts/check_runtime_independence.py", str(evidence), "--source-url", "https://source.example", expect=1)
+            self.assertIn("source.example/app.js", blocked.stdout)
+            run(PYTHON, "scripts/check_runtime_independence.py", str(evidence), "--source-url", "https://source.example", "--allow-origin", "https://source.example")
+
+    def test_asset_downloader_checks_type_checksum_and_is_idempotent(self) -> None:
+        with fixture_server() as base, tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            digest = hashlib.sha256(b"gcw-asset").hexdigest()
+            manifest = root / "assets.json"
+            manifest.write_text(json.dumps({"assets": [{
+                "sourceUrl": f"{base}/asset.bin",
+                "localPath": "public/asset.bin",
+                "contentType": "application/octet-stream",
+                "checksumSha256": digest,
+            }]}), encoding="utf-8")
+            first = run(PYTHON, "scripts/download_assets.py", str(manifest), "--output", str(root / "out"))
+            self.assertIn('"status": "downloaded"', first.stdout)
+            second = run(PYTHON, "scripts/download_assets.py", str(manifest), "--output", str(root / "out"))
+            self.assertIn('"status": "skipped"', second.stdout)
+            manifest.write_text(json.dumps({"assets": [{
+                "sourceUrl": f"{base}/asset.bin",
+                "localPath": "../escape.bin",
+                "contentType": "application/octet-stream",
+            }]}), encoding="utf-8")
+            escaped = run(PYTHON, "scripts/download_assets.py", str(manifest), "--output", str(root / "out"), expect=1)
+            self.assertIn("localPath must stay inside output", escaped.stderr)
 
 
 if __name__ == "__main__":

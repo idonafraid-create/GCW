@@ -34,6 +34,7 @@ def main() -> int:
         skill / "scripts" / "batch_image_diff.py": project / ".gcw" / "tools" / "batch_image_diff.py",
         skill / "scripts" / "route_smoke.py": project / ".gcw" / "tools" / "route_smoke.py",
         skill / "scripts" / "url_safety.py": project / ".gcw" / "tools" / "url_safety.py",
+        skill / "scripts" / "check_runtime_independence.py": project / ".gcw" / "tools" / "check_runtime_independence.py",
         skill / "assets" / "gcw-package.json": project / ".gcw" / "package.json",
         skill / "assets" / "gcw-package-lock.json": project / ".gcw" / "package-lock.json",
         skill / "assets" / "gcw-requirements.txt": project / ".gcw" / "requirements.txt",

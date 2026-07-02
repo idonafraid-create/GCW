@@ -1,26 +1,15 @@
 # QA scenarios
 
-Use fixed conditions for source and candidate: viewport, DPR, browser/backend, theme, route, crop, readiness, pointer, scroll, random seed and time phase. Put these values in the capture scenario JSON rather than relying on operator memory.
+Record fixed viewport, DPR, browser/backend, theme, route, crop, readiness, pointer, scroll, seed, and time phase in capture JSON.
 
-Apply the full matrix to `FAITHFUL_CLONE`, maintained `CREATIVE_REBUILD` projects and `PRODUCTION_RECOVERY`. For `TEARDOWN`, capture only the states needed to support the technical claims made in the deliverable.
-
-Minimum matrix:
-
-| Surface | Required scenarios |
+| Phase | Required verification |
 |---|---|
-| Homepage | ready initial frame, later frame, pointer left/center/right |
-| Scroll | top, early transition, target animated section, footer |
-| Responsive | canonical desktop and mobile viewport |
-| Navigation | mobile menu, one internal transition, direct deep link |
-| Routes | every recovered public route opens; representative content/title assertions |
-| GPU | one valid owner surface after loading; no shader link failure |
-| Build | clean install when practical, production build, static preview |
+| `TEARDOWN_PHASE` | Evidence needed for every claim; no clone gate |
+| `FAITHFUL_CLONE` | Desktop, mobile, key interactions, routes, build, numeric and visual Diff |
+| `REVIEW_GATE` | Preview, screenshots, Diff, `CLONE_REPORT.md`, Known Gaps |
+| `CREATIVE_REBUILD` | Accepted baseline plus final desktop/mobile and critical paths |
+| Recovery configuration | Full route/deployment continuity and maintained regression CI |
 
-For random or compositor-driven effects, inject the same deterministic RNG when safe, freeze the JavaScript clock only after both pages are ready, and record remaining compositor-sensitive regions separately. Never use an entry/loading overlay as a target frame; wait for an observable readiness condition such as the final canvas count or visible shell state.
+Verify loading, startup, primary interaction, completion/reset, mute when present, reduced-motion or low-performance behavior, and asset/network failure states. Mark absent capabilities `N/A`.
 
-## Threshold guidance
-
-- Treat numeric thresholds as project-specific gates, not universal definitions of quality.
-- A large deterministic change in a primary surface is P1/P2 even if the global changed-pixel percentage looks small.
-- A high footer diff caused by independently advancing particles may be phase-sensitive rather than a layout failure.
-- Always inspect the generated diff image before accepting a metric.
+For random or compositor-driven effects, inject the same deterministic RNG when safe, freeze time only after readiness, and record phase-sensitive regions separately. Inspect Diff images; never accept a single global score as proof.
