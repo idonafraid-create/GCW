@@ -153,6 +153,8 @@ class ReleaseSmokeTests(unittest.TestCase):
         self.assertIn(flow, (ROOT / "README.zh-CN.md").read_text(encoding="utf-8"))
         self.assertIn("## Evidence orchestration: the GCW difference", (ROOT / "README.md").read_text(encoding="utf-8"))
         self.assertIn("## 证据编排：GCW 的核心差异", (ROOT / "README.zh-CN.md").read_text(encoding="utf-8"))
+        self.assertIn("A screenshot is one frame. A live website is a million.", (ROOT / "README.md").read_text(encoding="utf-8"))
+        self.assertIn("截图只有一帧。活的网站有千万帧。", (ROOT / "README.zh-CN.md").read_text(encoding="utf-8"))
         self.assertIn("SITE_SPEC.md", skill)
         self.assertIn("Stop at REVIEW_GATE", skill)
         self.assertIn("During every `TEARDOWN_PHASE`, invoke `design-dna`", skill)

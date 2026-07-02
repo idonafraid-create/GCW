@@ -1,7 +1,5 @@
 # GCW
 
-Evidence-driven website cloning, technical teardown, and creative reconstruction.
-
 <p align="center">
   <strong>English</strong> · <a href="./README.zh-CN.md">简体中文</a>
 </p>
@@ -10,11 +8,17 @@ Evidence-driven website cloning, technical teardown, and creative reconstruction
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
-Found a website worth learning from? GCW helps an agent discover how it actually works, reproduce the important parts as a runnable local project, and verify the result in a real browser.
-
-GCW prefers official source and observable runtime evidence over plausible-looking AI guesses. It keeps deployed artifacts, inferred behavior, and your editable implementation clearly separated.
-
-> Find evidence before implementation. Make it run before refactoring. Compare before polishing.
+> A screenshot is one frame. A live website is a million.
+>
+> Everything beyond that frame is guesswork. GCW doesn't guess.
+>
+> It verifies frame by frame, pixel by pixel.
+>
+> SOURCE means SOURCE. GUESS says GUESS.
+>
+> Evidence-driven teardown, faithful cloning, and creative reconstruction. Built on structured Design DNA and WebGL forensics, with a verifiable artifact at every step.
+>
+> Prove it. Specify it. Rebuild it.
 
 ## What you can do
 
