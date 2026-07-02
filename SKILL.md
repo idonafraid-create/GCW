@@ -41,7 +41,7 @@ Read the workspace `AGENTS.md`, then initialize without overwriting evidence:
 python scripts/init_reconstruction.py <workspace> --url <canonical-url> --authorization <owned|licensed|authorized>
 ```
 
-Read `references/site-spec.md`. Create `.gcw/SITE_SPEC.md` as a draft; do not finalize it until teardown evidence and required companion-skill results have been integrated. Mark absent capabilities `N/A`. Record subsystem-level `Exact`, `Approximate`, `Unknown`, or `Excluded`; never hide differences behind one percentage.
+Read `references/site-spec.md`. Create `.gcw/SITE_SPEC.md` as a draft; do not finalize it until teardown evidence and required companion-skill results have been integrated. Mark absent capabilities `N/A`. Represent every implementation-critical conclusion in the section 9 subsystem table with fidelity and truth labels; never hide differences behind one percentage.
 
 ## 3. Gather real evidence
 

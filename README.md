@@ -216,7 +216,7 @@ Use GCW only when the target is owned by the user, licensed for the intended reu
 - Check code and asset licenses separately before publishing a clone or adaptation.
 - Remove tracking and original brand residue from creative rebuilds.
 - Do not commit credentials found in public bundles or configuration.
-- Mark technical conclusions as `SOURCE`, `PARTIAL` or `GUESS` when certainty matters.
+- Represent every implementation-critical conclusion in SITE_SPEC section 9 and mark it `SOURCE`, `PARTIAL` or `GUESS`; teardown cannot finalize with an invalid subsystem truth/fidelity row.
 
 ## Acknowledgments
 

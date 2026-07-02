@@ -38,7 +38,7 @@ When reconnaissance confirms no qualifying GPU surface, set the decision to `not
 - Web Shader Extractor answers how the target rendering system actually runs.
 - For implementation facts, target-bound Shader evidence outranks qualitative Design DNA inference.
 - Record conflicts; never average them.
-- The subsystem table records both fidelity (`Exact`, `Approximate`, `Unknown`, `Excluded`) and truth (`SOURCE`, `PARTIAL`, `GUESS`).
+- Represent every implementation-critical conclusion in the subsystem table. Record both fidelity (`Exact`, `Approximate`, `Unknown`, `Excluded`) and truth (`SOURCE`, `PARTIAL`, `GUESS`).
 - Classify unknowns as blocking, important, deferred, or external.
 
 Add full route maps, motion state timelines, asset manifests, provenance/hashes, and recovery strategy only when their documented conditions apply.

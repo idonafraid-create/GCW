@@ -36,6 +36,8 @@ Status: DRAFT
 
 ## 9. Subsystem fidelity and evidence
 
+Represent every implementation-critical conclusion in this table.
+
 | Subsystem | Fidelity | Truth | Evidence | Blocking | Acceptance |
 |---|---|---|---|---|---|
 | <!-- REQUIRED --> | Exact / Approximate / Unknown / Excluded | SOURCE / PARTIAL / GUESS |  | yes / no |  |

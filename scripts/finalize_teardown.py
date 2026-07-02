@@ -13,6 +13,8 @@ from pathlib import Path
 
 
 SITE_SPEC_SECTIONS = tuple(str(index) for index in range(1, 13))
+ALLOWED_FIDELITY = {"Exact", "Approximate", "Unknown", "Excluded"}
+ALLOWED_TRUTH = {"SOURCE", "PARTIAL", "GUESS"}
 
 
 def ensure_safe_path(root: Path, path: Path) -> None:
@@ -56,7 +58,38 @@ def validate_site_spec(path: Path, root: Path) -> str:
         body = text[match.end():end].strip()
         if not body:
             raise ValueError(f"SITE_SPEC.md section {match.group(1)} is empty")
+    validate_subsystem_table(text)
     return text
+
+
+def validate_subsystem_table(text: str) -> None:
+    match = re.search(r"^## 9\. [^\n]+\n(.*?)(?=^## 10\.)", text, re.MULTILINE | re.DOTALL)
+    if not match:
+        raise ValueError("SITE_SPEC.md section 9 subsystem table is missing")
+    rows = []
+    for line in match.group(1).splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("|"):
+            continue
+        cells = [cell.strip().strip("`") for cell in stripped.strip("|").split("|")]
+        if cells and cells[0] not in {"Subsystem", "---"} and not all(set(cell) <= {"-", ":"} for cell in cells):
+            rows.append(cells)
+    if not rows:
+        raise ValueError("SITE_SPEC.md section 9 requires at least one subsystem row")
+    for row_number, cells in enumerate(rows, 1):
+        if len(cells) != 6:
+            raise ValueError(f"SITE_SPEC.md section 9 row {row_number} must have 6 columns")
+        subsystem, fidelity, truth, evidence, blocking, acceptance = cells
+        if not subsystem:
+            raise ValueError(f"SITE_SPEC.md section 9 row {row_number} has no subsystem")
+        if fidelity not in ALLOWED_FIDELITY:
+            raise ValueError(f"SITE_SPEC.md section 9 row {row_number} has invalid Fidelity: {fidelity}")
+        if truth not in ALLOWED_TRUTH:
+            raise ValueError(f"SITE_SPEC.md section 9 row {row_number} has invalid Truth: {truth}")
+        if blocking.lower() not in {"yes", "no"}:
+            raise ValueError(f"SITE_SPEC.md section 9 row {row_number} has invalid Blocking: {blocking}")
+        if not evidence or not acceptance:
+            raise ValueError(f"SITE_SPEC.md section 9 row {row_number} requires Evidence and Acceptance")
 
 
 def artifact_entry(root: Path, path: Path, kind: str, source_skill: str) -> dict[str, str]:

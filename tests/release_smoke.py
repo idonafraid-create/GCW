@@ -94,7 +94,12 @@ def fixture_server():
 def complete_teardown_artifacts(workspace: Path, gpu_required: bool = False) -> None:
     root = workspace / ".gcw"
     spec = root / "SITE_SPEC.md"
-    spec.write_text(re.sub(r"<!-- REQUIRED.*?-->", "Completed from persisted evidence.", spec.read_text(encoding="utf-8")), encoding="utf-8")
+    spec_text = re.sub(r"<!-- REQUIRED.*?-->", "Completed from persisted evidence.", spec.read_text(encoding="utf-8"))
+    spec_text = spec_text.replace(
+        "| Completed from persisted evidence. | Exact / Approximate / Unknown / Excluded | SOURCE / PARTIAL / GUESS |  | yes / no |  |",
+        "| Layout | Exact | SOURCE | evidence/site-inventory.json | no | Matches measured grid and breakpoints |",
+    )
+    spec.write_text(spec_text, encoding="utf-8")
     design = {
         "meta": {"name": "fixture"},
         "design_system": {"color": {"primary": "#000000"}},
@@ -365,6 +370,27 @@ class ReleaseSmokeTests(unittest.TestCase):
             run(PYTHON, "scripts/finalize_teardown.py", temp)
             manifest = json.loads((workspace / ".gcw" / "teardown-manifest.json").read_text(encoding="utf-8"))
             self.assertEqual(manifest["gpuAnalysis"]["status"], "replay-ready")
+
+    def test_teardown_rejects_invalid_truth_fidelity_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Path(temp)
+            run(PYTHON, "scripts/init_reconstruction.py", temp, "--url", "https://example.com/")
+            complete_teardown_artifacts(workspace)
+            spec_path = workspace / ".gcw" / "SITE_SPEC.md"
+            valid_spec = spec_path.read_text(encoding="utf-8")
+            cases = (
+                ("| Exact | SOURCE |", "| Similar | SOURCE |", "invalid Fidelity"),
+                ("| Exact | SOURCE |", "| Exact | CERTAIN |", "invalid Truth"),
+                ("| no | Matches measured", "| maybe | Matches measured", "invalid Blocking"),
+                ("| evidence/site-inventory.json |", "|  |", "requires Evidence and Acceptance"),
+                ("| Matches measured grid and breakpoints |", "|  |", "requires Evidence and Acceptance"),
+            )
+            for old, new, message in cases:
+                spec_path.write_text(valid_spec.replace(old, new), encoding="utf-8")
+                blocked = run(PYTHON, "scripts/finalize_teardown.py", temp, expect=1)
+                self.assertIn(message, blocked.stderr)
+            spec_path.write_text(valid_spec, encoding="utf-8")
+            run(PYTHON, "scripts/finalize_teardown.py", temp)
 
     def test_runtime_independence_blocks_source_origin(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
