@@ -110,12 +110,12 @@ GCW 会先做一次简短预判，再决定工具、路径和交付范围。
 
 ## 高级分析能力
 
-遇到复杂网站时，GCW 可以协调两个配套 Skill：
+每次 `TEARDOWN_PHASE` 都必须在 `SITE_SPEC.md` 定稿前运行 `design-dna`，只做研究也不例外；GPU 分析按检测到的渲染面触发：
 
-- [web-shader-extractor](https://github.com/lixiaolin94/skills/tree/main/web-shader-extractor)：分析 Canvas、WebGL、WebGPU、Shader 和渲染管线。
-- [design-dna](https://github.com/zanwei/design-dna)：提取字体、间距、配色、布局、动效和视觉语言。
+- [design-dna](https://github.com/zanwei/design-dna)：强制提取字体、间距、配色、布局、响应式、动效和视觉语言。
+- [web-shader-extractor](https://github.com/lixiaolin94/skills/tree/main/web-shader-extractor)：检测到 Canvas、WebGL、WebGPU 或 Shader 时强制分析；不存在 GPU 渲染面时标记为 `N/A`。
 
-请把它们安装到同一个单数 `.agent/skills` 根目录。GCW 自带的网站盘点、路由检查和截图对比脚本可以独立运行；GPU 深度取证与结构化设计提取需要对应的配套 Skill。
+请把它们安装到同一个单数 `.agent/skills` 根目录。只做研究会在拆解后停止，但不得绕过拆解阶段的必需分析。
 
 ## GCW 可以留下哪些成果
 

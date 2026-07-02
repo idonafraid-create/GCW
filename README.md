@@ -110,12 +110,12 @@ The skill performs a short preflight before choosing the tools and scope.
 
 ## Advanced analysis
 
-GCW can coordinate two companion skills when a project needs deeper analysis:
+Every `TEARDOWN_PHASE`, including study-only work, runs `design-dna` before `SITE_SPEC.md` is finalized. GPU analysis is conditional on the detected surface:
 
-- [web-shader-extractor](https://github.com/lixiaolin94/skills/tree/main/web-shader-extractor) for Canvas, WebGL, WebGPU, shaders and render pipelines.
-- [design-dna](https://github.com/zanwei/design-dna) for typography, spacing, palette, layout, motion and visual language.
+- [design-dna](https://github.com/zanwei/design-dna) is required for typography, spacing, palette, layout, responsive rules, motion and visual language.
+- [web-shader-extractor](https://github.com/lixiaolin94/skills/tree/main/web-shader-extractor) is required when Canvas, WebGL, WebGPU or shaders are present; otherwise GPU analysis is recorded as `N/A`.
 
-Install them in the same singular `.agent/skills` root. GCW's inventory, route checks and screenshot comparison scripts work without them; advanced GPU forensics and structured design extraction do not.
+Install them in the same singular `.agent/skills` root. Study-only work stops after teardown but does not bypass its required analysis.
 
 ## What GCW can leave behind
 

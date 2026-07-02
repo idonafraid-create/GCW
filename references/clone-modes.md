@@ -8,6 +8,8 @@ TEARDOWN_PHASE -> FAITHFUL_CLONE -> REVIEW_GATE -> CREATIVE_REBUILD
 
 `TEARDOWN_PHASE` is mandatory. A study-only task stops there and may be described externally as `TEARDOWN`. `FAITHFUL_CLONE` may be the final outcome or the baseline for later creative work. Never enter `CREATIVE_REBUILD` until the user accepts the baseline at `REVIEW_GATE`.
 
+Every `TEARDOWN_PHASE` requires `design-dna` before its deliverables are finalized, including study-only work. Canvas/WebGL/WebGPU/shader surfaces additionally require `web-shader-extractor`; when inventory evidence confirms none exist, record GPU analysis as `N/A`. Integrate both decisions and all resulting evidence into `SITE_SPEC.md` before leaving teardown.
+
 ## Visible preflight
 
 Show `Outcome`, `Current phase`, `Site type`, `Ownership/authorization`, `Source availability`, `Baseline scope`, `Implementation path`, and `Approximate or excluded scope`. Ask one path-changing question when intent or authorization is ambiguous. Record scope changes.

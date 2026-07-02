@@ -18,6 +18,7 @@ EVIDENCE_DIRS = (
     "network",
     "runtime",
     "source",
+    "design-dna",
     "gpu",
 )
 
@@ -82,9 +83,15 @@ def main() -> int:
         "implementationPath": args.implementation_path,
         "approximateOrExcludedScope": [],
         "conditionalGates": {
+            "designDna": True,
+            "gpuForensics": "required-when-canvas-webgl-webgpu-or-shaders-detected",
             "runtimeIndependence": args.implementation_path == "CLEAN_REBUILD" or args.outcome == "creative-rebuild",
             "assetProvenance": "enable-when-asset-heavy-offline-or-maintained",
             "recovery": args.implementation_path == "PRODUCTION_RECOVERY",
+        },
+        "analysisGates": {
+            "designDna": "pending",
+            "gpuForensics": "pending-detection",
         },
         "state": "TEARDOWN_PHASE",
         "gates": {

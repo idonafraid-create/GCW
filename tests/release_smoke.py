@@ -119,6 +119,10 @@ class ReleaseSmokeTests(unittest.TestCase):
         self.assertIn(flow, (ROOT / "README.zh-CN.md").read_text(encoding="utf-8"))
         self.assertIn("SITE_SPEC.md", skill)
         self.assertIn("Stop at REVIEW_GATE", skill)
+        self.assertIn("During every `TEARDOWN_PHASE`, invoke `design-dna`", skill)
+        self.assertIn("also invoke `web-shader-extractor`", skill)
+        self.assertIn("Only after these decisions and calls are complete", skill)
+        self.assertIn("If `design-dna` is unavailable, stop", skill)
         for asset in ("site-spec-template.md", "creative-brief-template.md", "asset-manifest.example.json"):
             self.assertTrue((ROOT / "assets" / asset).is_file(), asset)
 
@@ -138,9 +142,12 @@ class ReleaseSmokeTests(unittest.TestCase):
             self.assertEqual(state["currentPhase"], "TEARDOWN_PHASE")
             self.assertEqual(state["outcome"], "teardown")
             self.assertEqual(state["conditionalGates"]["assetProvenance"], "enable-when-asset-heavy-offline-or-maintained")
+            self.assertTrue(state["conditionalGates"]["designDna"])
+            self.assertEqual(state["conditionalGates"]["gpuForensics"], "required-when-canvas-webgl-webgpu-or-shaders-detected")
             gcw = Path(temp) / ".gcw"
             self.assertTrue((gcw / "SITE_SPEC.md").is_file())
             self.assertTrue((gcw / "evidence" / "screenshots" / "desktop").is_dir())
+            self.assertTrue((gcw / "evidence" / "design-dna").is_dir())
             for name in ("site-inventory.json", "route-map.json", "interaction-states.json"):
                 self.assertTrue((gcw / "evidence" / name).is_file())
             state_path.write_text('{"preserved": true}\n', encoding="utf-8")
@@ -287,10 +294,19 @@ class ReleaseSmokeTests(unittest.TestCase):
             run(PYTHON, "scripts/init_reconstruction.py", temp, "--url", "https://example.com/")
             invalid = run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "CREATIVE_REBUILD", expect=2)
             self.assertIn("invalid transition", invalid.stderr)
-            run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "FAITHFUL_CLONE")
+            incomplete_study = run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "COMPLETE", expect=2)
+            self.assertIn("leaving TEARDOWN_PHASE requires a completed design-dna pass", incomplete_study.stderr)
+            missing_analysis = run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "FAITHFUL_CLONE", expect=2)
+            self.assertIn("leaving TEARDOWN_PHASE requires a completed design-dna pass", missing_analysis.stderr)
+            run(
+                PYTHON, "scripts/advance_workflow.py", temp, "--to", "FAITHFUL_CLONE",
+                "--design-dna-complete", "--gpu-analysis", "na",
+            )
             run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "REVIEW_GATE")
             run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "CREATIVE_REBUILD")
             self.assertTrue((Path(temp) / ".gcw" / "CREATIVE_BRIEF.md").is_file())
+            state = json.loads((Path(temp) / ".gcw" / "run-state.json").read_text(encoding="utf-8"))
+            self.assertEqual(state["analysisGates"], {"designDna": "complete", "gpuForensics": "na"})
 
     def test_runtime_independence_blocks_source_origin(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

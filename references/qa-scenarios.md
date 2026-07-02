@@ -4,7 +4,7 @@ Record fixed viewport, DPR, browser/backend, theme, route, crop, readiness, poin
 
 | Phase | Required verification |
 |---|---|
-| `TEARDOWN_PHASE` | Evidence needed for every claim; no clone gate |
+| `TEARDOWN_PHASE` | Evidence for every claim, mandatory `design-dna`, and completed or evidence-backed `N/A` GPU analysis |
 | `FAITHFUL_CLONE` | Desktop, mobile, key interactions, routes, build, numeric and visual Diff |
 | `REVIEW_GATE` | Preview, screenshots, Diff, `CLONE_REPORT.md`, Known Gaps |
 | `CREATIVE_REBUILD` | Accepted baseline plus final desktop/mobile and critical paths |

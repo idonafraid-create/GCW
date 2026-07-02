@@ -41,7 +41,7 @@ Read the workspace `AGENTS.md`, then initialize without overwriting evidence:
 python scripts/init_reconstruction.py <workspace> --url <canonical-url> --authorization <owned|licensed|authorized>
 ```
 
-Read `references/site-spec.md`. Complete `.gcw/SITE_SPEC.md` and fixed evidence before implementation. Mark absent capabilities `N/A`. Record subsystem-level `Exact`, `Approximate`, `Unknown`, or `Excluded`; never hide differences behind one percentage.
+Read `references/site-spec.md`. Create `.gcw/SITE_SPEC.md` as a draft; do not finalize it until teardown evidence and required companion-skill results have been integrated. Mark absent capabilities `N/A`. Record subsystem-level `Exact`, `Approximate`, `Unknown`, or `Excluded`; never hide differences behind one percentage.
 
 ## 3. Gather real evidence
 
@@ -53,7 +53,13 @@ Run inventory where Playwright is available:
 node scripts/site_inventory.mjs --url <canonical-url> --out <workspace>/.gcw/evidence/site-inventory.json
 ```
 
-Verify routes, breakpoints, DOM roots, overlays, scroll containers, input states, loading/stable states, GPU/media/workers/iframes, and external data manually. Use `web-shader-extractor` for GPU pipelines and `design-dna` when preserving visual language.
+Verify routes, breakpoints, DOM roots, overlays, scroll containers, input states, loading/stable states, GPU/media/workers/iframes, and external data manually.
+
+During every `TEARDOWN_PHASE`, invoke `design-dna` and preserve its evidence for typography, color, spacing, layout, responsive rules, motion, and visual language. If `design-dna` is unavailable, stop and tell the user what must be installed; do not substitute an unstructured guess.
+
+If Canvas, WebGL, WebGPU, or shaders are detected, also invoke `web-shader-extractor` and preserve the render/input/output evidence. If the required companion is unavailable, stop before finalization. When reconnaissance confirms no qualifying GPU surface, record GPU analysis as `N/A` with the supporting inventory evidence.
+
+Only after these decisions and calls are complete, integrate their results into `SITE_SPEC.md` and finalize the teardown deliverables. Apply the same contract when teardown is the final outcome; study-only work changes the stopping point, not teardown depth.
 
 ## 4. Build the scoped faithful baseline
 
@@ -84,7 +90,7 @@ Present the baseline, preview, screenshots, Diff, `CLONE_REPORT.md`, and Known G
 - B: baseline accepted; stop.
 - C: baseline accepted for innovation; create `.gcw/CREATIVE_BRIEF.md`, then enter `CREATIVE_REBUILD`.
 
-Use `scripts/advance_workflow.py` to record transitions. The creative brief states what to keep, remove, change, add, the innovation direction, and final acceptance target.
+Use `scripts/advance_workflow.py` to record transitions. Leaving teardown—whether for a faithful baseline or a study-only completion—requires `--design-dna-complete` and `--gpu-analysis <complete|na>`. The creative brief states what to keep, remove, change, add, the innovation direction, and final acceptance target.
 
 ## 7. Close out honestly
 
