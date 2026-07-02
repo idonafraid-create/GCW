@@ -46,6 +46,49 @@ Every task starts with teardown and `.gcw/SITE_SPEC.md`. A study can stop there.
 
 <img src="./assets/features.webp" alt="GCW workflow: public evidence, local reconstruction, verification, and deployment" width="100%">
 
+## Evidence orchestration: the GCW difference
+
+GCW does not merely call companion skills. It preserves their native evidence, converts the results into one implementation specification, and blocks phase transitions until the evidence contract passes.
+
+### Companion analysis
+
+Every `TEARDOWN_PHASE`, including study-only work, runs `design-dna` before `SITE_SPEC.md` is finalized:
+
+- [design-dna](https://github.com/zanwei/design-dna) is required for typography, spacing, palette, layout, responsive rules, motion and visual language.
+- [web-shader-extractor](https://github.com/lixiaolin94/skills/tree/main/web-shader-extractor) is required when Canvas, WebGL, WebGPU or shaders are present; otherwise GPU analysis is recorded as `N/A` with detection evidence.
+
+Install both in the same singular `.agent/skills` root. Study-only work stops after teardown but does not bypass its required analysis.
+
+### One authority per layer
+
+| Layer | Authority |
+|---|---|
+| Companion artifacts | Complete native Design DNA and Shader evidence |
+| `SITE_SPEC.md` | The single human-readable implementation specification |
+| `teardown-manifest.json` | Machine-readable completion gate |
+| `evidence-index.json` | Artifact paths, ownership and SHA-256 checksums |
+
+```text
+.gcw/
+├─ SITE_SPEC.md
+├─ teardown-manifest.json
+├─ run-state.json
+└─ evidence/
+   ├─ evidence-index.json
+   ├─ site-inventory.json
+   ├─ route-map.json
+   ├─ interaction-states.json
+   ├─ screenshots/{desktop,mobile}/
+   ├─ network/
+   ├─ design-dna/design-dna.json
+   └─ web-shader-extractor/
+      ├─ gpu-decision.json
+      ├─ scout-card.json          # GPU targets only
+      └─ replay-manifest.json     # GPU targets only
+```
+
+`finalize_teardown.py` refuses to finalize when fixed evidence is empty, Design DNA is missing, GPU `N/A` lacks detection evidence, or a detected GPU target has not reached `TARGET_LOCKED` and `REPLAY_READY`. GCW summarizes these artifacts in SITE_SPEC but never copies or rewrites their native schemas.
+
 ## Quick start
 
 ### 1. Install GCW
@@ -108,26 +151,15 @@ Use $gcw to extract the design DNA and rebuild this reference with my own conten
 
 The skill performs a short preflight before choosing the tools and scope.
 
-## Advanced analysis
-
-Every `TEARDOWN_PHASE`, including study-only work, runs `design-dna` before `SITE_SPEC.md` is finalized. GPU analysis is conditional on the detected surface:
-
-- [design-dna](https://github.com/zanwei/design-dna) is required for typography, spacing, palette, layout, responsive rules, motion and visual language.
-- [web-shader-extractor](https://github.com/lixiaolin94/skills/tree/main/web-shader-extractor) is required when Canvas, WebGL, WebGPU or shaders are present; otherwise GPU analysis is recorded as `N/A`.
-
-Install them in the same singular `.agent/skills` root. Study-only work stops after teardown but does not bypass its required analysis.
-
 ## What GCW can leave behind
 
-- A runnable local project and production build command
 - `.gcw/SITE_SPEC.md` and fixed route, interaction, network and screenshot evidence
 - `teardown-manifest.json` and a checksummed evidence index
 - Native Design DNA and conditional Shader Target Lock/Replay Ready artifacts
-- `TEARDOWN.md` with verified implementation findings
-- `DESIGN_DNA.json` for a creative rebuild
-- `REPLACE_GUIDE.md` for text, media, color, font, model and data changes
-- `CLONE_REPORT.md` with source-versus-local differences and known gaps
 - Route and resource inventory
+- A runnable local project and production build command
+- `CLONE_REPORT.md` with source-versus-local differences and known gaps
+- `REPLACE_GUIDE.md` for text, media, color, font, model and data changes
 - Matched desktop/mobile screenshots, numeric diffs and visual reports
 - Optional GitHub Actions screenshot regression
 

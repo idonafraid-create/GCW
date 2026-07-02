@@ -46,6 +46,49 @@ TEARDOWN_PHASE -> FAITHFUL_CLONE -> REVIEW_GATE -> CREATIVE_REBUILD
 
 <img src="./assets/features.webp" alt="GCW 工作流：公开证据、本地重建、验证与部署" width="100%">
 
+## 证据编排：GCW 的核心差异
+
+GCW 不只是调用兄弟 Skill。它保留兄弟 Skill 的原生证据，把分析结果汇总为唯一实施规格，并在证据契约通过前阻止阶段切换。
+
+### 兄弟 Skill 分析
+
+每次 `TEARDOWN_PHASE` 都必须在 `SITE_SPEC.md` 定稿前运行 `design-dna`，只做研究也不例外：
+
+- [design-dna](https://github.com/zanwei/design-dna)：强制提取字体、间距、配色、布局、响应式、动效和视觉语言。
+- [web-shader-extractor](https://github.com/lixiaolin94/skills/tree/main/web-shader-extractor)：检测到 Canvas、WebGL、WebGPU 或 Shader 时强制分析；不存在 GPU 渲染面时必须用检测证据标记 `N/A`。
+
+请把两者安装到同一个单数 `.agent/skills` 根目录。只做研究会在拆解后停止，但不得绕过拆解阶段的必需分析。
+
+### 每一层只有一个权威来源
+
+| 层级 | 权威来源 |
+|---|---|
+| 兄弟 Skill 原生产物 | 完整 Design DNA 与 Shader 证据 |
+| `SITE_SPEC.md` | 唯一的人类可读实施规格 |
+| `teardown-manifest.json` | 机器可读的拆解完成 Gate |
+| `evidence-index.json` | Artifact 路径、归属和 SHA-256 checksum |
+
+```text
+.gcw/
+├─ SITE_SPEC.md
+├─ teardown-manifest.json
+├─ run-state.json
+└─ evidence/
+   ├─ evidence-index.json
+   ├─ site-inventory.json
+   ├─ route-map.json
+   ├─ interaction-states.json
+   ├─ screenshots/{desktop,mobile}/
+   ├─ network/
+   ├─ design-dna/design-dna.json
+   └─ web-shader-extractor/
+      ├─ gpu-decision.json
+      ├─ scout-card.json          # 仅 GPU 目标
+      └─ replay-manifest.json     # 仅 GPU 目标
+```
+
+当固定证据为空、Design DNA 缺失、GPU `N/A` 没有检测证据，或已发现的 GPU 目标尚未达到 `TARGET_LOCKED` 与 `REPLAY_READY` 时，`finalize_teardown.py` 会拒绝定稿。GCW 只在 SITE_SPEC 中汇总和引用这些产物，绝不复制或改写兄弟 Skill 的原生 schema。
+
 ## 快速开始
 
 ### 1. 安装 GCW
@@ -108,26 +151,15 @@ npm run verify
 
 GCW 会先做一次简短预判，再决定工具、路径和交付范围。
 
-## 高级分析能力
-
-每次 `TEARDOWN_PHASE` 都必须在 `SITE_SPEC.md` 定稿前运行 `design-dna`，只做研究也不例外；GPU 分析按检测到的渲染面触发：
-
-- [design-dna](https://github.com/zanwei/design-dna)：强制提取字体、间距、配色、布局、响应式、动效和视觉语言。
-- [web-shader-extractor](https://github.com/lixiaolin94/skills/tree/main/web-shader-extractor)：检测到 Canvas、WebGL、WebGPU 或 Shader 时强制分析；不存在 GPU 渲染面时标记为 `N/A`。
-
-请把它们安装到同一个单数 `.agent/skills` 根目录。只做研究会在拆解后停止，但不得绕过拆解阶段的必需分析。
-
 ## GCW 可以留下哪些成果
 
-- 可运行的本地项目和生产构建命令
 - `.gcw/SITE_SPEC.md` 与固定的路由、交互、网络和截图证据
 - `teardown-manifest.json` 与带 checksum 的证据索引
 - Design DNA 原生产物，以及按条件生成的 Shader Target Lock/Replay Ready 产物
-- `TEARDOWN.md`：经过核验的真实实现拆解
-- `DESIGN_DNA.json`：用于创意重建的设计身份
-- `REPLACE_GUIDE.md`：文字、媒体、配色、字体、模型和数据替换位置
-- `CLONE_REPORT.md`：原站与本地实现的差异、取舍和已知缺口
 - 路由与资源盘点结果
+- 可运行的本地项目和生产构建命令
+- `CLONE_REPORT.md`：原站与本地实现的差异、取舍和已知缺口
+- `REPLACE_GUIDE.md`：文字、媒体、配色、字体、模型和数据替换位置
 - 桌面端和移动端对照截图、数值 Diff 和可视化报告
 - 可选的 GitHub Actions 截图回归
 
