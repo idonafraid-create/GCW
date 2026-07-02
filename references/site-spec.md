@@ -1,9 +1,44 @@
-# SITE_SPEC contract
+# SITE_SPEC and teardown artifact contract
 
-Every task creates `.gcw/SITE_SPEC.md` as the unique implementation specification. Initialize it as a draft, then finalize it only after the complete teardown sequence. Keep all 12 numbered sections; write `N/A` rather than deleting an inapplicable section.
+## Authority boundaries
 
-Fixed evidence is `.gcw/evidence/site-inventory.json`, `route-map.json`, `interaction-states.json`, desktop/mobile screenshots, and `network/`. Add a full route map for multiple page families, state timelines for complex motion, an asset inventory for asset-heavy work, and provenance/hashes/recovery strategy for recovery work.
+- `.gcw/SITE_SPEC.md` is the single human-readable implementation specification.
+- `.gcw/teardown-manifest.json` is the machine-readable teardown gate.
+- `.gcw/evidence/evidence-index.json` indexes artifacts and checksums.
+- Companion Skill artifacts remain authoritative for their native schemas. SITE_SPEC summarizes and links them; it never reproduces them wholesale.
 
-Run `design-dna` during every teardown and preserve its raw evidence under `.gcw/evidence/design-dna/`. For detected Canvas/WebGL/WebGPU/shader surfaces, run `web-shader-extractor` and preserve its render/input/output evidence under `.gcw/evidence/gpu/`; otherwise record `N/A` with inventory evidence. Integrate these results before finalizing `SITE_SPEC.md`, even when teardown is the final outcome.
+Initialize SITE_SPEC as a draft and finalize it only after the complete teardown sequence. Keep all 12 numbered sections and remove every `REQUIRED` placeholder. Write `N/A` only with supporting evidence.
 
-Record each subsystem as `Exact`, `Approximate`, `Unknown`, or `Excluded`, with evidence and acceptance criteria. Copy final results into `CLONE_REPORT.md`.
+## Fixed evidence
+
+Every task preserves:
+
+```text
+.gcw/evidence/
+├─ evidence-index.json
+├─ site-inventory.json
+├─ route-map.json
+├─ interaction-states.json
+├─ screenshots/desktop/
+├─ screenshots/mobile/
+├─ network/
+├─ design-dna/design-dna.json
+└─ web-shader-extractor/gpu-decision.json
+```
+
+Run `design-dna` during every teardown and keep its complete three-dimension JSON. SITE_SPEC section 4 summarizes only implementation-critical Design System, Design Style, and Visual Effects findings.
+
+When a Canvas/WebGL/WebGPU/shader target exists, set `gpu-decision.json.decision` to `required`, run `web-shader-extractor`, and preserve its native `scout-card.json`, `replay-manifest.json`, `run-state.json`, and evidence tree in the same namespace. Before finalizing teardown, `scout-card.json` must be `TARGET_LOCKED`, `replay-manifest.json` must be `REPLAY_READY`, and no blocking replay unknown may remain. Raw Replay and QA belong to the faithful baseline phase.
+
+When reconnaissance confirms no qualifying GPU surface, set the decision to `not-applicable` and record checked surfaces plus detection-evidence paths. Do not create fake Shader artifacts.
+
+## SITE_SPEC synthesis rules
+
+- Design DNA answers what the design looks and feels like.
+- Web Shader Extractor answers how the target rendering system actually runs.
+- For implementation facts, target-bound Shader evidence outranks qualitative Design DNA inference.
+- Record conflicts; never average them.
+- The subsystem table records both fidelity (`Exact`, `Approximate`, `Unknown`, `Excluded`) and truth (`SOURCE`, `PARTIAL`, `GUESS`).
+- Classify unknowns as blocking, important, deferred, or external.
+
+Add full route maps, motion state timelines, asset manifests, provenance/hashes, and recovery strategy only when their documented conditions apply.

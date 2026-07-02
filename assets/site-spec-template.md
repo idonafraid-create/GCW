@@ -1,28 +1,53 @@
 # Site specification
 
-## 1. Goal, scope, and authorization boundary
+Status: DRAFT
 
-## 2. Pages, routes, and information architecture
+## 1. Document status, outcome, scope, and authorization
 
-## 3. Desktop/mobile layout and breakpoints
+<!-- REQUIRED: state the outcome, baseline scope, authorization, source availability, and exclusions. -->
 
-## 4. Typography, color, spacing, and visual tokens
+## 2. Pages, routes, page families, and information architecture
 
-## 5. Interaction states, triggers, and input methods
+<!-- REQUIRED: summarize route-map.json and identify representative page families. -->
 
-## 6. Animation timeline, easing, thresholds, and stable capture points
+## 3. Desktop/mobile layout, grid, and breakpoints
 
-## 7. Assets, network, data, and external dependencies
+<!-- REQUIRED: record measured layout rules and responsive transitions. -->
 
-## 8. DOM/Canvas/WebGL rendering structure
+## 4. Design DNA
 
-## 9. Subsystem fidelity
+<!-- REQUIRED: summarize design system, style, and effects; link evidence/design-dna/design-dna.json. -->
 
-| Subsystem | Exact / Approximate / Unknown / Excluded | Evidence | Notes |
-|---|---|---|---|
+## 5. Components, interaction states, triggers, and inputs
 
-## 10. Implementation order and acceptance criteria
+<!-- REQUIRED: summarize interaction-states.json, including loading, error, reset, and reduced-motion states. -->
+
+## 6. Motion timeline and stable capture points
+
+<!-- REQUIRED: record timing, easing, thresholds, state transitions, and deterministic capture conditions. -->
+
+## 7. Assets, fonts, data, network, and external dependencies
+
+<!-- REQUIRED: record provenance, runtime dependencies, fixtures, and conditional asset-manifest requirements. -->
+
+## 8. Rendering systems and GPU decision
+
+<!-- REQUIRED: identify DOM/SVG/Canvas/GPU surfaces. Link gpu-decision.json; when required, summarize Target Lock, Replay Ready, replay route, fidelity tier, and raw artifacts. -->
+
+## 9. Subsystem fidelity and evidence
+
+| Subsystem | Fidelity | Truth | Evidence | Blocking | Acceptance |
+|---|---|---|---|---|---|
+| <!-- REQUIRED --> | Exact / Approximate / Unknown / Excluded | SOURCE / PARTIAL / GUESS |  | yes / no |  |
+
+## 10. Implementation path, order, dependencies, and acceptance criteria
+
+<!-- REQUIRED: define SOURCE_ADAPT, CLEAN_REBUILD, or authorized PRODUCTION_RECOVERY work in dependency order. -->
 
 ## 11. Transferable design and engineering methods
 
-## 12. Known gaps and next evidence
+<!-- REQUIRED: separate reusable methods from target-specific code, branding, and assets. -->
+
+## 12. Known gaps, unknown classes, and next evidence
+
+<!-- REQUIRED: classify blocking, important, deferred, and external unknowns and state the next evidence. -->

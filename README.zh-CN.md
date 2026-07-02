@@ -121,6 +121,8 @@ GCW 会先做一次简短预判，再决定工具、路径和交付范围。
 
 - 可运行的本地项目和生产构建命令
 - `.gcw/SITE_SPEC.md` 与固定的路由、交互、网络和截图证据
+- `teardown-manifest.json` 与带 checksum 的证据索引
+- Design DNA 原生产物，以及按条件生成的 Shader Target Lock/Replay Ready 产物
 - `TEARDOWN.md`：经过核验的真实实现拆解
 - `DESIGN_DNA.json`：用于创意重建的设计身份
 - `REPLACE_GUIDE.md`：文字、媒体、配色、字体、模型和数据替换位置
@@ -136,6 +138,7 @@ GCW 会先做一次简短预判，再决定工具、路径和交付范围。
 | 脚本 | 用途 |
 |---|---|
 | `init_reconstruction.py` | 建立非破坏性的 `.gcw/` 项目记录 |
+| `finalize_teardown.py` | 校验兄弟 Skill 产物并定稿 SITE_SPEC |
 | `site_inventory.mjs` | 盘点公开路由、资源、字体和渲染区域 |
 | `capture_compare.mjs` | 在一致条件下截取源站和本地版本状态 |
 | `batch_image_diff.py` | 生成指标、Diff 图和 Markdown/JSON 报告 |

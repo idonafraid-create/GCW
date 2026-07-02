@@ -20,8 +20,6 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("workspace", type=Path)
     parser.add_argument("--to", required=True, choices=sorted({phase for values in TRANSITIONS.values() for phase in values}))
-    parser.add_argument("--design-dna-complete", action="store_true")
-    parser.add_argument("--gpu-analysis", choices=("complete", "na"))
     args = parser.parse_args()
     root = args.workspace.resolve() / ".gcw"
     state_path = root / "run-state.json"
@@ -30,12 +28,12 @@ def main() -> int:
     if args.to not in TRANSITIONS.get(current, set()):
         parser.error(f"invalid transition: {current} -> {args.to}")
     if current == "TEARDOWN_PHASE":
-        if not args.design_dna_complete:
-            parser.error("leaving TEARDOWN_PHASE requires a completed design-dna pass")
-        if not args.gpu_analysis:
-            parser.error("leaving TEARDOWN_PHASE requires GPU analysis to be complete or explicitly N/A")
-        state.setdefault("analysisGates", {})["designDna"] = "complete"
-        state["analysisGates"]["gpuForensics"] = args.gpu_analysis
+        manifest_path = root / "teardown-manifest.json"
+        if not manifest_path.is_file():
+            parser.error("leaving TEARDOWN_PHASE requires teardown-manifest.json")
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if manifest.get("status") != "passed" or manifest.get("siteSpec", {}).get("status") != "final":
+            parser.error("leaving TEARDOWN_PHASE requires scripts/finalize_teardown.py to pass")
     if args.to == "CREATIVE_REBUILD":
         template = Path(__file__).resolve().parent.parent / "assets" / "creative-brief-template.md"
         brief = root / "CREATIVE_BRIEF.md"

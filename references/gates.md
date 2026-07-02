@@ -2,7 +2,7 @@
 
 | Gate | Required proof | Blocking failure |
 |---|---|---|
-| Teardown complete | Final `SITE_SPEC.md`, `design-dna` evidence, and completed or evidence-backed `N/A` GPU decision | Missing section, scope, authorization, companion analysis, or critical evidence |
+| Teardown complete | Passed `teardown-manifest.json`, final `SITE_SPEC.md`, complete Design DNA, and Shader `TARGET_LOCKED` + `REPLAY_READY` or evidence-backed GPU `N/A` | Missing artifact, placeholder, blocking unknown, companion gate, or critical evidence |
 | Baseline verified | Build, routes, desktop/mobile/key-state comparison, subsystem fidelity table | Open P0/P1/P2 or unreported approximation |
 | Review | Preview, screenshots, Diff, `CLONE_REPORT.md`, Known Gaps | User has not chosen A, B, or C |
 | Creative brief | Keep/remove/change/new direction and final acceptance target | Missing explicit user decision |

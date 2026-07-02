@@ -20,6 +20,7 @@ EVIDENCE_DIRS = (
     "source",
     "design-dna",
     "gpu",
+    "web-shader-extractor/evidence",
 )
 
 
@@ -136,6 +137,9 @@ def main() -> int:
     files = {
         root / "run-state.json": json.dumps(state, indent=2) + "\n",
         root / "SITE_SPEC.md": (Path(__file__).resolve().parent.parent / "assets" / "site-spec-template.md").read_text(encoding="utf-8"),
+        root / "teardown-manifest.json": (Path(__file__).resolve().parent.parent / "assets" / "teardown-manifest.template.json").read_text(encoding="utf-8"),
+        evidence / "evidence-index.json": (Path(__file__).resolve().parent.parent / "assets" / "evidence-index.template.json").read_text(encoding="utf-8"),
+        evidence / "web-shader-extractor" / "gpu-decision.json": (Path(__file__).resolve().parent.parent / "assets" / "gpu-decision.template.json").read_text(encoding="utf-8"),
         evidence / "site-inventory.json": "{}\n",
         evidence / "route-map.json": "{}\n",
         evidence / "interaction-states.json": "{}\n",

@@ -121,6 +121,8 @@ Install them in the same singular `.agent/skills` root. Study-only work stops af
 
 - A runnable local project and production build command
 - `.gcw/SITE_SPEC.md` and fixed route, interaction, network and screenshot evidence
+- `teardown-manifest.json` and a checksummed evidence index
+- Native Design DNA and conditional Shader Target Lock/Replay Ready artifacts
 - `TEARDOWN.md` with verified implementation findings
 - `DESIGN_DNA.json` for a creative rebuild
 - `REPLACE_GUIDE.md` for text, media, color, font, model and data changes
@@ -136,6 +138,7 @@ Recovery provenance and replay paperwork applies only when ownership/authorizati
 | Script | Purpose |
 |---|---|
 | `init_reconstruction.py` | Create a non-destructive `.gcw/` project record |
+| `finalize_teardown.py` | Validate companion artifacts and finalize SITE_SPEC |
 | `site_inventory.mjs` | Inventory public routes, resources, fonts and rendering surfaces |
 | `capture_compare.mjs` | Capture matched source and candidate states |
 | `batch_image_diff.py` | Generate metrics, diff images and Markdown/JSON reports |

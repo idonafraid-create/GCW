@@ -55,11 +55,17 @@ node scripts/site_inventory.mjs --url <canonical-url> --out <workspace>/.gcw/evi
 
 Verify routes, breakpoints, DOM roots, overlays, scroll containers, input states, loading/stable states, GPU/media/workers/iframes, and external data manually.
 
-During every `TEARDOWN_PHASE`, invoke `design-dna` and preserve its evidence for typography, color, spacing, layout, responsive rules, motion, and visual language. If `design-dna` is unavailable, stop and tell the user what must be installed; do not substitute an unstructured guess.
+During every `TEARDOWN_PHASE`, invoke `design-dna` and preserve its complete JSON at `.gcw/evidence/design-dna/design-dna.json`. Summarize implementation-critical findings in `SITE_SPEC.md`; do not copy the sibling schema into a second GCW document. If `design-dna` is unavailable, stop and tell the user what must be installed; do not substitute an unstructured guess.
 
-If Canvas, WebGL, WebGPU, or shaders are detected, also invoke `web-shader-extractor` and preserve the render/input/output evidence. If the required companion is unavailable, stop before finalization. When reconnaissance confirms no qualifying GPU surface, record GPU analysis as `N/A` with the supporting inventory evidence.
+If Canvas, WebGL, WebGPU, or shaders are detected, also invoke `web-shader-extractor`. Preserve its native artifacts under `.gcw/evidence/web-shader-extractor/` and reach `TARGET_LOCKED` plus `REPLAY_READY`; teardown does not require Raw Replay or QA Report. If the required companion is unavailable, stop before finalization. When reconnaissance confirms no qualifying GPU surface, set `gpu-decision.json` to `not-applicable` and reference the supporting inventory evidence.
 
-Only after these decisions and calls are complete, integrate their results into `SITE_SPEC.md` and finalize the teardown deliverables. Apply the same contract when teardown is the final outcome; study-only work changes the stopping point, not teardown depth.
+Only after these decisions and calls are complete, integrate their results into `SITE_SPEC.md`, remove every `REQUIRED` placeholder, then run:
+
+```text
+python scripts/finalize_teardown.py <workspace>
+```
+
+The finalizer validates companion artifacts, updates `teardown-manifest.json` and `evidence-index.json`, and marks SITE_SPEC final. Apply the same contract when teardown is the final outcome; study-only work changes the stopping point, not teardown depth.
 
 ## 4. Build the scoped faithful baseline
 
@@ -90,7 +96,7 @@ Present the baseline, preview, screenshots, Diff, `CLONE_REPORT.md`, and Known G
 - B: baseline accepted; stop.
 - C: baseline accepted for innovation; create `.gcw/CREATIVE_BRIEF.md`, then enter `CREATIVE_REBUILD`.
 
-Use `scripts/advance_workflow.py` to record transitions. Leaving teardown—whether for a faithful baseline or a study-only completion—requires `--design-dna-complete` and `--gpu-analysis <complete|na>`. The creative brief states what to keep, remove, change, add, the innovation direction, and final acceptance target.
+Use `scripts/advance_workflow.py` to record transitions. It refuses to leave teardown until `finalize_teardown.py` has passed. The creative brief states what to keep, remove, change, add, the innovation direction, and final acceptance target.
 
 ## 7. Close out honestly
 

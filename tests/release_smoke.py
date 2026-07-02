@@ -91,6 +91,35 @@ def fixture_server():
         thread.join(timeout=5)
 
 
+def complete_teardown_artifacts(workspace: Path, gpu_required: bool = False) -> None:
+    root = workspace / ".gcw"
+    spec = root / "SITE_SPEC.md"
+    spec.write_text(re.sub(r"<!-- REQUIRED.*?-->", "Completed from persisted evidence.", spec.read_text(encoding="utf-8")), encoding="utf-8")
+    design = {
+        "meta": {"name": "fixture"},
+        "design_system": {"color": {"primary": "#000000"}},
+        "design_style": {"aesthetic": {"mood": ["neutral"]}},
+        "visual_effects": {"overview": {"effect_intensity": "none"}},
+    }
+    design_path = root / "evidence" / "design-dna" / "design-dna.json"
+    design_path.write_text(json.dumps(design), encoding="utf-8")
+    for name in ("site-inventory.json", "route-map.json", "interaction-states.json"):
+        (root / "evidence" / name).write_text(json.dumps({"fixture": True}), encoding="utf-8")
+    (root / "evidence" / "screenshots" / "desktop" / "home.png").write_bytes(b"fixture-desktop")
+    (root / "evidence" / "screenshots" / "mobile" / "home.png").write_bytes(b"fixture-mobile")
+    (root / "evidence" / "network" / "requests.json").write_text(json.dumps({"requests": []}), encoding="utf-8")
+    shader = root / "evidence" / "web-shader-extractor"
+    if gpu_required:
+        decision = {"schemaVersion": 1, "decision": "required", "checkedSurfaces": ["canvas#hero"], "detectionEvidence": ["evidence/site-inventory.json"]}
+        scout = {"schemaVersion": 3, "lockStatus": "locked", "gateDecision": {"targetLocked": True}}
+        replay = {"schemaVersion": 3, "unknowns": {"blocking": []}, "gateDecision": {"replayReady": True, "blockers": []}}
+        (shader / "scout-card.json").write_text(json.dumps(scout), encoding="utf-8")
+        (shader / "replay-manifest.json").write_text(json.dumps(replay), encoding="utf-8")
+    else:
+        decision = {"schemaVersion": 1, "decision": "not-applicable", "checkedSurfaces": ["main document and iframes"], "detectionEvidence": ["evidence/site-inventory.json"]}
+    (shader / "gpu-decision.json").write_text(json.dumps(decision), encoding="utf-8")
+
+
 class ReleaseSmokeTests(unittest.TestCase):
     def test_skill_and_package_contract(self) -> None:
         skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
@@ -123,7 +152,10 @@ class ReleaseSmokeTests(unittest.TestCase):
         self.assertIn("also invoke `web-shader-extractor`", skill)
         self.assertIn("Only after these decisions and calls are complete", skill)
         self.assertIn("If `design-dna` is unavailable, stop", skill)
-        for asset in ("site-spec-template.md", "creative-brief-template.md", "asset-manifest.example.json"):
+        for asset in (
+            "site-spec-template.md", "creative-brief-template.md", "asset-manifest.example.json",
+            "teardown-manifest.template.json", "evidence-index.template.json", "gpu-decision.template.json",
+        ):
             self.assertTrue((ROOT / "assets" / asset).is_file(), asset)
 
         workflows = [ROOT / ".github" / "workflows" / "ci.yml", ROOT / "assets" / "github-workflows" / "gcw-visual-regression.yml"]
@@ -146,8 +178,11 @@ class ReleaseSmokeTests(unittest.TestCase):
             self.assertEqual(state["conditionalGates"]["gpuForensics"], "required-when-canvas-webgl-webgpu-or-shaders-detected")
             gcw = Path(temp) / ".gcw"
             self.assertTrue((gcw / "SITE_SPEC.md").is_file())
+            self.assertTrue((gcw / "teardown-manifest.json").is_file())
+            self.assertTrue((gcw / "evidence" / "evidence-index.json").is_file())
             self.assertTrue((gcw / "evidence" / "screenshots" / "desktop").is_dir())
             self.assertTrue((gcw / "evidence" / "design-dna").is_dir())
+            self.assertTrue((gcw / "evidence" / "web-shader-extractor" / "gpu-decision.json").is_file())
             for name in ("site-inventory.json", "route-map.json", "interaction-states.json"):
                 self.assertTrue((gcw / "evidence" / name).is_file())
             state_path.write_text('{"preserved": true}\n', encoding="utf-8")
@@ -295,18 +330,39 @@ class ReleaseSmokeTests(unittest.TestCase):
             invalid = run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "CREATIVE_REBUILD", expect=2)
             self.assertIn("invalid transition", invalid.stderr)
             incomplete_study = run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "COMPLETE", expect=2)
-            self.assertIn("leaving TEARDOWN_PHASE requires a completed design-dna pass", incomplete_study.stderr)
+            self.assertIn("finalize_teardown.py to pass", incomplete_study.stderr)
             missing_analysis = run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "FAITHFUL_CLONE", expect=2)
-            self.assertIn("leaving TEARDOWN_PHASE requires a completed design-dna pass", missing_analysis.stderr)
-            run(
-                PYTHON, "scripts/advance_workflow.py", temp, "--to", "FAITHFUL_CLONE",
-                "--design-dna-complete", "--gpu-analysis", "na",
-            )
+            self.assertIn("finalize_teardown.py to pass", missing_analysis.stderr)
+            complete_teardown_artifacts(Path(temp))
+            run(PYTHON, "scripts/finalize_teardown.py", temp)
+            run(PYTHON, "scripts/finalize_teardown.py", temp)
+            run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "FAITHFUL_CLONE")
             run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "REVIEW_GATE")
             run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "CREATIVE_REBUILD")
             self.assertTrue((Path(temp) / ".gcw" / "CREATIVE_BRIEF.md").is_file())
             state = json.loads((Path(temp) / ".gcw" / "run-state.json").read_text(encoding="utf-8"))
-            self.assertEqual(state["analysisGates"], {"designDna": "complete", "gpuForensics": "na"})
+            self.assertEqual(state["analysisGates"], {"designDna": "complete", "gpuForensics": "not-applicable", "teardown": "passed"})
+            manifest = json.loads((Path(temp) / ".gcw" / "teardown-manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["status"], "passed")
+            evidence_index = json.loads((Path(temp) / ".gcw" / "evidence" / "evidence-index.json").read_text(encoding="utf-8"))
+            self.assertTrue({"design-dna", "gpu-decision", "site-spec", "site-inventory", "route-map", "interaction-states"}.issubset({entry["kind"] for entry in evidence_index["entries"]}))
+
+    def test_gpu_teardown_requires_target_lock_and_replay_ready(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Path(temp)
+            run(PYTHON, "scripts/init_reconstruction.py", temp, "--url", "https://example.com/")
+            complete_teardown_artifacts(workspace, gpu_required=True)
+            scout_path = workspace / ".gcw" / "evidence" / "web-shader-extractor" / "scout-card.json"
+            scout = json.loads(scout_path.read_text(encoding="utf-8"))
+            scout["lockStatus"] = "provisional"
+            scout_path.write_text(json.dumps(scout), encoding="utf-8")
+            blocked = run(PYTHON, "scripts/finalize_teardown.py", temp, expect=1)
+            self.assertIn("TARGET_LOCKED", blocked.stderr)
+            scout["lockStatus"] = "locked"
+            scout_path.write_text(json.dumps(scout), encoding="utf-8")
+            run(PYTHON, "scripts/finalize_teardown.py", temp)
+            manifest = json.loads((workspace / ".gcw" / "teardown-manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["gpuAnalysis"]["status"], "replay-ready")
 
     def test_runtime_independence_blocks_source_origin(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
