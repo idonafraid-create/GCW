@@ -91,6 +91,7 @@ Install both in the same singular `.agent/skills` root. Study-only work stops af
    ├─ evidence-index.json
    ├─ site-inventory.json
    ├─ route-map.json
+   ├─ source-maps.json
    ├─ interaction-states.json
    ├─ screenshots/{desktop,mobile}/
    ├─ network/
@@ -185,7 +186,7 @@ Recovery provenance and replay paperwork applies only when ownership/authorizati
 |---|---|
 | `init_reconstruction.py` | Create a non-destructive `.gcw/` project record |
 | `finalize_teardown.py` | Validate companion artifacts and finalize SITE_SPEC |
-| `site_inventory.mjs` | Inventory routes and emit site, route-map, and network evidence |
+| `site_inventory.mjs` | Inventory routes and emit site, route-map, network, and source-map evidence |
 | `capture_compare.mjs` | Capture matched source and candidate states |
 | `batch_image_diff.py` | Generate metrics, diff images and Markdown/JSON reports |
 | `route_smoke.py` | Check preview routes and representative text |

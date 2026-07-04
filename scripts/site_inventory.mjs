@@ -14,6 +14,84 @@ function sanitizeSurface(surface) {
   return surface;
 }
 
+function isSourceMappable(response) {
+  const resourceType = response.request().resourceType();
+  const contentType = response.headers()["content-type"] || "";
+  return resourceType === "script" || resourceType === "stylesheet" || /(?:javascript|ecmascript|text\/css)/i.test(contentType);
+}
+
+function sourceMapReference(response, body) {
+  const headers = response.headers();
+  for (const name of ["sourcemap", "x-sourcemap"]) {
+    if (headers[name]) return { directive: name === "sourcemap" ? "SourceMap" : "X-SourceMap", value: headers[name].trim() };
+  }
+  const matches = [...body.matchAll(/(?:\/\/[#@]|\/\*[#@])\s*sourceMappingURL\s*=\s*([^\s*]+)[^\n]*?/gi)];
+  return matches.length ? { directive: "sourceMappingURL", value: matches.at(-1)[1].trim() } : null;
+}
+
+function conventionalSourceMapUrl(resourceUrl) {
+  const url = new URL(resourceUrl);
+  url.hash = "";
+  url.search = "";
+  url.pathname = `${url.pathname}.map`;
+  return url.href;
+}
+
+async function probeSourceMap(value, resourceUrl, timeout) {
+  if (value.startsWith("data:")) {
+    return { mapUrl: "data:embedded", finalUrl: null, status: null, accessible: true, embedded: true, contentType: null };
+  }
+  let current = parsePublicHttpUrl(new URL(value, resourceUrl).href, "source map URL", { allowSensitiveQuery: true });
+  for (let hop = 0; hop < 10; hop += 1) {
+    const response = await fetch(current, { redirect: "manual", signal: AbortSignal.timeout(timeout) });
+    const contentType = response.headers.get("content-type");
+    await response.body?.cancel();
+    if (response.status < 300 || response.status >= 400) {
+      return {
+        mapUrl: sanitizeUrl(new URL(value, resourceUrl).href),
+        finalUrl: sanitizeUrl(current.href),
+        status: response.status,
+        accessible: response.ok,
+        embedded: false,
+        contentType,
+      };
+    }
+    const location = response.headers.get("location");
+    if (!location) break;
+    current = parsePublicHttpUrl(new URL(location, current).href, "source map redirect", { allowSensitiveQuery: true });
+  }
+  throw new Error("source map probe exceeded 10 redirects");
+}
+
+async function inspectSourceMap(response, timeout) {
+  const resourceUrl = response.url();
+  try {
+    const reference = sourceMapReference(response, (await response.body()).toString("utf8"));
+    const candidate = reference?.value || conventionalSourceMapUrl(resourceUrl);
+    const probe = await probeSourceMap(candidate, resourceUrl, timeout);
+    return {
+      resourceUrl: sanitizeUrl(resourceUrl),
+      resourceType: response.request().resourceType(),
+      directive: reference?.directive || null,
+      ...probe,
+      error: null,
+    };
+  } catch (error) {
+    return {
+      resourceUrl: sanitizeUrl(resourceUrl),
+      resourceType: response.request().resourceType(),
+      directive: null,
+      mapUrl: sanitizeUrl(conventionalSourceMapUrl(resourceUrl)),
+      finalUrl: null,
+      status: null,
+      accessible: false,
+      embedded: false,
+      contentType: null,
+      error: sanitizeText(error.message),
+    };
+  }
+}
+
 function parseArgs(argv) {
   const args = { maxRoutes: 25, timeout: 20000, settleMs: 700, executablePath: "", viewport: { width: 1280, height: 720 } };
   for (let i = 0; i < argv.length; i += 1) {
@@ -149,6 +227,7 @@ async function main() {
     page.setDefaultTimeout(args.timeout);
 
     const resources = new Map();
+    const sourceMapTasks = new Map();
     context.on("request", (request) => {
       const url = request.url();
       if (!resources.has(url)) {
@@ -161,6 +240,9 @@ async function main() {
       current.status = response.status();
       current.mimeType = response.headers()["content-type"] || null;
       resources.set(response.url(), current);
+      if (isSourceMappable(response) && !sourceMapTasks.has(response.url())) {
+        sourceMapTasks.set(response.url(), inspectSourceMap(response, args.timeout));
+      }
     });
 
     const queue = [normalizeRoute(canonical.href, canonical.origin) || "/"];
@@ -193,6 +275,11 @@ async function main() {
       routes.push(record);
     }
 
+    const sourceMaps = {
+      schemaVersion: 1,
+      generatedAt: new Date().toISOString(),
+      resources: (await Promise.all(sourceMapTasks.values())).sort((a, b) => a.resourceUrl.localeCompare(b.resourceUrl)),
+    };
     const output = {
       schemaVersion: 1,
       generatedAt: new Date().toISOString(),
@@ -206,6 +293,7 @@ async function main() {
     const evidenceDir = path.dirname(inventoryPath);
     const routeMapPath = path.join(evidenceDir, "route-map.json");
     const networkPath = path.join(evidenceDir, "network", "requests.json");
+    const sourceMapsPath = path.join(evidenceDir, "source-maps.json");
     const routeMap = {
       schemaVersion: 1,
       generatedAt: output.generatedAt,
@@ -222,13 +310,16 @@ async function main() {
       writeFile(inventoryPath, `${JSON.stringify(output, null, 2)}\n`, "utf8"),
       writeFile(routeMapPath, `${JSON.stringify(routeMap, null, 2)}\n`, "utf8"),
       writeFile(networkPath, `${JSON.stringify(network, null, 2)}\n`, "utf8"),
+      writeFile(sourceMapsPath, `${JSON.stringify(sourceMaps, null, 2)}\n`, "utf8"),
     ]);
     console.log(JSON.stringify({
       out: inventoryPath,
       routeMap: routeMapPath,
       network: networkPath,
+      sourceMaps: sourceMapsPath,
       routes: routes.length,
       resources: output.resources.length,
+      sourceMapCandidates: sourceMaps.resources.length,
     }, null, 2));
   } finally {
     await browser.close();

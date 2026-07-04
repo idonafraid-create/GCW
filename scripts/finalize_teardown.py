@@ -178,6 +178,9 @@ def main() -> int:
         "route-map": evidence_root / "route-map.json",
         "interaction-states": evidence_root / "interaction-states.json",
     }
+    source_maps_path = evidence_root / "source-maps.json"
+    if source_maps_path.is_file():
+        fixed_json["source-maps"] = source_maps_path
     for name, path in fixed_json.items():
         if name == "interaction-states":
             continue

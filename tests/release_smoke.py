@@ -43,6 +43,7 @@ def run(*args: str, expect: int = 0, env: dict[str, str] | None = None) -> subpr
 
 class FixtureHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
+        source_map_header = None
         if self.path == "/redirect-external":
             self.send_response(302)
             self.send_header("Location", "http://127.0.0.1:65530/outside")
@@ -51,9 +52,25 @@ class FixtureHandler(BaseHTTPRequestHandler):
         if self.path == "/asset.bin":
             body = b"gcw-asset"
             content_type = "application/octet-stream"
+        elif self.path.startswith("/asset.js.map"):
+            body = b'{"version":3,"sources":["asset.ts"],"names":[],"mappings":""}'
+            content_type = "application/json"
         elif self.path.startswith("/asset.js"):
-            body = b"window.fixtureLoaded = true;"
+            body = b"window.fixtureLoaded = true;\n//# sourceMappingURL=/asset.js.map?token=mapsecret"
             content_type = "text/javascript"
+        elif self.path == "/styles.css.map":
+            body = b'{"version":3,"sources":["styles.scss"],"names":[],"mappings":""}'
+            content_type = "application/json"
+        elif self.path == "/styles.css":
+            body = b"body { color: white; }"
+            content_type = "text/css"
+            source_map_header = "/styles.css.map"
+        elif self.path == "/plain.css.map":
+            body = b'{"version":3,"sources":["plain.scss"],"names":[],"mappings":""}'
+            content_type = "application/json"
+        elif self.path == "/plain.css":
+            body = b"html { background: black; }"
+            content_type = "text/css"
         elif self.path == "/child":
             body = b"<!doctype html><title>Child</title><h1>Child route</h1>"
             content_type = "text/html"
@@ -62,7 +79,7 @@ class FixtureHandler(BaseHTTPRequestHandler):
             return
         else:
             body = b"""<!doctype html>
-<html><head><title>GCW fixture</title><script src='/asset.js?x-amz-signature=topsecret'></script></head>
+<html><head><title>GCW fixture</title><link rel='stylesheet' href='/styles.css'><link rel='stylesheet' href='/plain.css'><script src='/asset.js?x-amz-signature=topsecret'></script></head>
 <body style='margin:0;background:#ff0000;min-height:100vh'><a href='/child'>Child</a>
 <canvas id='unused'></canvas><canvas id='used'></canvas>
 <script>document.querySelector('#used').getContext('2d'); setTimeout(() => { document.body.style.background = '#00ff00'; }, 1000);</script>
@@ -70,6 +87,8 @@ class FixtureHandler(BaseHTTPRequestHandler):
             content_type = "text/html"
         self.send_response(200)
         self.send_header("Content-Type", f"{content_type}; charset=utf-8")
+        if source_map_header:
+            self.send_header("X-SourceMap", source_map_header)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -110,6 +129,7 @@ def complete_teardown_artifacts(workspace: Path, gpu_required: bool = False) -> 
     design_path.write_text(json.dumps(design), encoding="utf-8")
     (root / "evidence" / "site-inventory.json").write_text(json.dumps({"fixture": True}), encoding="utf-8")
     (root / "evidence" / "route-map.json").write_text(json.dumps({"routes": [{"route": "/"}]}), encoding="utf-8")
+    (root / "evidence" / "source-maps.json").write_text(json.dumps({"schemaVersion": 1, "resources": []}), encoding="utf-8")
     interaction_states = {
         "schemaVersion": 1,
         "states": [{
@@ -307,6 +327,21 @@ class ReleaseSmokeTests(unittest.TestCase):
             self.assertEqual({item["route"] for item in route_map["routes"]}, {"/", "/child"})
             network = json.loads((Path(temp) / "network" / "requests.json").read_text(encoding="utf-8"))
             self.assertTrue(any(item["url"].endswith("/asset.js?x-amz-signature=REDACTED") for item in network["requests"]))
+            source_maps = json.loads((Path(temp) / "source-maps.json").read_text(encoding="utf-8"))
+            self.assertEqual(source_maps["schemaVersion"], 1)
+            script = next(item for item in source_maps["resources"] if "/asset.js?" in item["resourceUrl"])
+            self.assertEqual(script["directive"], "sourceMappingURL")
+            self.assertEqual(script["mapUrl"], f"{base}/asset.js.map?token=REDACTED")
+            self.assertEqual(script["status"], 200)
+            stylesheet = next(item for item in source_maps["resources"] if item["resourceUrl"].endswith("/styles.css"))
+            self.assertEqual(stylesheet["directive"], "X-SourceMap")
+            self.assertEqual(stylesheet["mapUrl"], f"{base}/styles.css.map")
+            self.assertEqual(stylesheet["status"], 200)
+            conventional = next(item for item in source_maps["resources"] if item["resourceUrl"].endswith("/plain.css"))
+            self.assertIsNone(conventional["directive"])
+            self.assertEqual(conventional["mapUrl"], f"{base}/plain.css.map")
+            self.assertTrue(conventional["accessible"])
+            self.assertNotIn("mapsecret", json.dumps(source_maps))
 
             redirected = Path(temp) / "redirected.json"
             run(NODE, "scripts/site_inventory.mjs", "--url", f"{base}/redirect-external", "--out", str(redirected), "--settle-ms", "0")
@@ -421,7 +456,7 @@ Approved screenshots.
             manifest = json.loads((Path(temp) / ".gcw" / "teardown-manifest.json").read_text(encoding="utf-8"))
             self.assertEqual(manifest["status"], "passed")
             evidence_index = json.loads((Path(temp) / ".gcw" / "evidence" / "evidence-index.json").read_text(encoding="utf-8"))
-            self.assertTrue({"design-dna", "gpu-decision", "site-spec", "site-inventory", "route-map", "interaction-states"}.issubset({entry["kind"] for entry in evidence_index["entries"]}))
+            self.assertTrue({"design-dna", "gpu-decision", "site-spec", "site-inventory", "route-map", "source-maps", "interaction-states"}.issubset({entry["kind"] for entry in evidence_index["entries"]}))
             design_entry = next(entry for entry in evidence_index["entries"] if entry["kind"] == "design-dna")
             self.assertEqual(design_entry["schemaContract"], "three-dimension-v1")
 

@@ -91,6 +91,7 @@ GCW 不只是调用兄弟 Skill。它保留兄弟 Skill 的原生证据，把分
    ├─ evidence-index.json
    ├─ site-inventory.json
    ├─ route-map.json
+   ├─ source-maps.json
    ├─ interaction-states.json
    ├─ screenshots/{desktop,mobile}/
    ├─ network/
@@ -185,7 +186,7 @@ GCW 会先做一次简短预判，再决定工具、路径和交付范围。
 |---|---|
 | `init_reconstruction.py` | 建立非破坏性的 `.gcw/` 项目记录 |
 | `finalize_teardown.py` | 校验兄弟 Skill 产物并定稿 SITE_SPEC |
-| `site_inventory.mjs` | 盘点路由并生成站点、路由图和网络证据 |
+| `site_inventory.mjs` | 盘点路由并生成站点、路由图、网络和 Source Map 证据 |
 | `capture_compare.mjs` | 在一致条件下截取源站和本地版本状态 |
 | `batch_image_diff.py` | 生成指标、Diff 图和 Markdown/JSON 报告 |
 | `route_smoke.py` | 检查预览路由与代表性文字 |

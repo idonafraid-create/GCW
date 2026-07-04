@@ -18,6 +18,7 @@ Every task preserves:
 ├─ evidence-index.json
 ├─ site-inventory.json
 ├─ route-map.json
+├─ source-maps.json
 ├─ interaction-states.json
 ├─ screenshots/desktop/
 ├─ screenshots/mobile/

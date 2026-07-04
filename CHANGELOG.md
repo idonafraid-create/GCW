@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Inventory now records redacted Source Map evidence from response headers, `sourceMappingURL` comments, and conventional `.map` probes.
+
 ## 1.2.1 - 2026-07-04
 
 ### Added

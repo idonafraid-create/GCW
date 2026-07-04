@@ -55,7 +55,7 @@ Run inventory where Playwright is available:
 node <skill-root>/scripts/site_inventory.mjs --url <canonical-url> --out <workspace>/.gcw/evidence/site-inventory.json
 ```
 
-This command also writes `.gcw/evidence/route-map.json` and `.gcw/evidence/network/requests.json`. Fill `.gcw/evidence/interaction-states.json` with at least one observed state using the schema in `references/site-spec.md`.
+This command also writes `.gcw/evidence/route-map.json`, `.gcw/evidence/network/requests.json`, and `.gcw/evidence/source-maps.json`. Source-map evidence records response-header or comment directives, conventional `.map` probes, reachability, and redacted URLs. Fill `.gcw/evidence/interaction-states.json` with at least one observed state using the schema in `references/site-spec.md`.
 
 Verify routes, breakpoints, DOM roots, overlays, scroll containers, input states, loading/stable states, GPU/media/workers/iframes, and external data manually.
 

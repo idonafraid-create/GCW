@@ -5,7 +5,7 @@ Use automation for deterministic collection and transformation. Use browser insp
 | Tool | Purpose | Main output |
 |---|---|---|
 | `init_reconstruction.py` | Create non-destructive `.gcw/` evidence scaffolding | run state, known gaps, QA matrix, scenario config |
-| `site_inventory.mjs` | Crawl public same-origin routes and record network/surface resources | `site-inventory.json`, `route-map.json`, `network/requests.json` |
+| `site_inventory.mjs` | Crawl public same-origin routes and record network, surface, and source-map resources | `site-inventory.json`, `route-map.json`, `network/requests.json`, `source-maps.json` |
 | `capture_compare.mjs` | Capture source/candidate pairs under matched conditions | PNG pairs + capture manifest |
 | `image_diff.py` | Compare one same-size screenshot pair | JSON metric and optional diff image |
 | `batch_image_diff.py` | Compare every `*.source.png`/`*.candidate.png` pair | JSON, Markdown and diff images |
