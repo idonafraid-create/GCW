@@ -1,0 +1,27 @@
+# Changelog
+
+## 1.2.1 - 2026-07-04
+
+### Added
+
+- Teardown depth profiles: `minimal`, `standard`, and `deep`.
+- Machine-validated interaction-state schema, screenshot decoding, companion schema anchors, and review-decision history.
+- Configurable inventory viewport plus generated route-map and network evidence.
+- Public ADR for the staged workflow and conditional gates.
+
+### Changed
+
+- Image comparison now uses Pillow-native operations and one shared implementation.
+- Capture scenarios use one canonical template and default to a light color scheme.
+- Environment reporting separates base runtime readiness from teardown companion readiness.
+- Skill commands resolve through `<skill-root>` and recognize both `AGENTS.md` and `CLAUDE.md` workspace instructions.
+
+### Fixed
+
+- Workflow transitions no longer fabricate a creative brief and now enforce `CLONE_REPORT.md` plus explicit A/B/C decisions.
+- Teardown finalization validates all inputs before writing final state.
+- Runtime-independence checks normalize default ports and inspect both network evidence and final build output.
+- Asset downloads report per-item failures and reject every cross-origin redirect hop.
+- Installed visual-regression CI invokes Playwright from `.gcw` and warns when non-Vite build commands need adaptation.
+
+Full diff: `v1.2.0..1.2.1`
