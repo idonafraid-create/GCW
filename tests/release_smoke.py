@@ -82,6 +82,26 @@ fetch('/api/data', {headers: {Authorization: 'Bearer request-secret'}})
   .then(data => { document.querySelector('#api-value').textContent = data.message; });
 </script></body>"""
             content_type = "text/html"
+        elif self.path == "/interactions":
+            body = b"""<!doctype html><title>Interaction fixture</title>
+<style>
+#hover:hover { background-color: rgb(0, 255, 0); }
+#focus:focus { outline: 4px solid rgb(0, 0, 255); }
+#within:focus-within { background-color: rgb(255, 0, 255); }
+#panel { display: none; }
+#expand[aria-expanded='true'] + #panel { display: block; }
+</style>
+<button id='hover'>Hover me</button>
+<input id='focus' value='Focus me'>
+<div id='within'><input value='Nested focus'></div>
+<button id='expand' aria-expanded='false'>Expand</button><div id='panel'>Panel open</div>
+<script>
+document.querySelector('#expand').addEventListener('click', event => {
+  const button = event.currentTarget;
+  button.setAttribute('aria-expanded', button.getAttribute('aria-expanded') === 'true' ? 'false' : 'true');
+});
+</script>"""
+            content_type = "text/html"
         elif self.path == "/child":
             body = b"<!doctype html><title>Child</title><h1>Child route</h1>"
             content_type = "text/html"
@@ -512,6 +532,46 @@ class ReleaseSmokeTests(unittest.TestCase):
                 "--record-har", str(Path(temp) / "record"), "--replay-har", str(Path(temp) / "replay"), expect=1,
             )
             self.assertIn("mutually exclusive", rejected.stderr)
+
+    def test_interaction_state_detection_records_reviewable_browser_evidence(self) -> None:
+        with fixture_server() as base, tempfile.TemporaryDirectory() as temp:
+            evidence = Path(temp) / ".gcw" / "evidence"
+            out = evidence / "interaction-states.json"
+            run(
+                NODE, "scripts/detect_interaction_states.mjs",
+                "--url", f"{base}/interactions", "--out", str(out),
+                "--settle-ms", "0", "--max-per-trigger", "2",
+            )
+            report = json.loads(out.read_text(encoding="utf-8"))
+            self.assertEqual(report["schemaVersion"], 1)
+            self.assertEqual(report["reviewStatus"], "pending")
+            self.assertEqual({state["triggerType"] for state in report["states"]}, {"hover", "focus", "aria-expanded"})
+            self.assertNotIn("#within", {state["elementSelector"] for state in report["states"]})
+            self.assertEqual(report["qa"], {"consoleErrors": [], "httpErrors": []})
+            for state in report["states"]:
+                self.assertEqual(len(state["evidence"]), 2)
+                self.assertTrue(state["before"])
+                self.assertTrue(state["after"])
+                for relative in state["evidence"]:
+                    image_path = evidence / relative
+                    self.assertTrue(image_path.is_file(), relative)
+                    with Image.open(image_path) as image:
+                        image.verify()
+
+    def test_teardown_rejects_pending_generated_interaction_states(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Path(temp)
+            run(PYTHON, "scripts/init_reconstruction.py", temp, "--url", "https://example.com/")
+            complete_teardown_artifacts(workspace)
+            states_path = workspace / ".gcw" / "evidence" / "interaction-states.json"
+            states = json.loads(states_path.read_text(encoding="utf-8"))
+            states["reviewStatus"] = "pending"
+            states_path.write_text(json.dumps(states), encoding="utf-8")
+            blocked = run(PYTHON, "scripts/finalize_teardown.py", temp, expect=1)
+            self.assertIn("reviewStatus must be confirmed", blocked.stderr)
+            states["reviewStatus"] = "confirmed"
+            states_path.write_text(json.dumps(states), encoding="utf-8")
+            run(PYTHON, "scripts/finalize_teardown.py", temp)
 
     def test_image_diff_threshold_validation_and_batch_gate(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

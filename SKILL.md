@@ -55,9 +55,17 @@ Run inventory where Playwright is available:
 node <skill-root>/scripts/site_inventory.mjs --url <canonical-url> --out <workspace>/.gcw/evidence/site-inventory.json
 ```
 
-This command also writes `.gcw/evidence/route-map.json`, `.gcw/evidence/network/requests.json`, and `.gcw/evidence/source-maps.json`. Source-map evidence records response-header or comment directives, conventional `.map` probes, reachability, and redacted URLs. Fill `.gcw/evidence/interaction-states.json` with at least one observed state using the schema in `references/site-spec.md`.
+This command also writes `.gcw/evidence/route-map.json`, `.gcw/evidence/network/requests.json`, and `.gcw/evidence/source-maps.json`. Source-map evidence records response-header or comment directives, conventional `.map` probes, reachability, and redacted URLs.
 
-Verify routes, breakpoints, DOM roots, overlays, scroll containers, input states, loading/stable states, GPU/media/workers/iframes, and external data manually.
+Generate a narrow interaction-state draft where Playwright is available:
+
+```text
+node <skill-root>/scripts/detect_interaction_states.mjs --url <canonical-url> --out <workspace>/.gcw/evidence/interaction-states.json
+```
+
+The detector records observed `:hover`, `:focus`/`:focus-visible`, and common `aria-expanded` toggles with before/after screenshots. Its output is deliberately `reviewStatus: pending`: remove false positives, add important script-driven states it cannot discover, then set `reviewStatus` to `confirmed`. Finalization rejects an unreviewed generated draft.
+
+Verify routes, breakpoints, DOM roots, overlays, scroll containers, input states, loading/stable states, GPU/media/workers/iframes, and external data manually. Cross-origin CSS, pseudo-element-only changes, canvas state, and multi-step interactions remain manual discovery scope.
 
 During every standard or deep `TEARDOWN_PHASE`, invoke `design-dna` and preserve its complete JSON at `.gcw/evidence/design-dna/design-dna.json`. Minimal teardown recommends the same evidence but does not block finalization when it is absent. Summarize implementation-critical findings in `SITE_SPEC.md`; do not copy the sibling schema into a second GCW document. If required `design-dna` is unavailable, stop and tell the user what must be installed; do not substitute an unstructured guess.
 

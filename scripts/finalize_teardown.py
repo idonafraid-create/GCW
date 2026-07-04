@@ -115,6 +115,8 @@ def validate_interaction_states(root: Path, path: Path) -> None:
     value = load_json(path, root)
     if value.get("schemaVersion") != 1:
         raise ValueError("interaction-states.json schemaVersion must be 1")
+    if value.get("reviewStatus") not in (None, "confirmed"):
+        raise ValueError("generated interaction-states.json reviewStatus must be confirmed before finalization")
     states = value.get("states")
     if not isinstance(states, list) or not states:
         raise ValueError("interaction-states.json requires at least one state")

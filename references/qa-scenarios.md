@@ -12,4 +12,6 @@ Record fixed viewport, DPR, browser/backend, theme, route, crop, readiness, poin
 
 Verify loading, startup, primary interaction, completion/reset, mute when present, reduced-motion or low-performance behavior, and asset/network failure states. Mark absent capabilities `N/A`.
 
+`detect_interaction_states.mjs` may seed teardown evidence for direct hover/focus styles and common expanded controls. Treat every generated state as a candidate until its before/after screenshots are reviewed; automated discovery does not replace critical-path interaction QA.
+
 For random or compositor-driven effects, inject the same deterministic RNG when safe, freeze time only after readiness, and record phase-sensitive regions separately. Inspect Diff images; never accept a single global score as proof.

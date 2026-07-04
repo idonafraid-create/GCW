@@ -187,6 +187,7 @@ GCW 会先做一次简短预判，再决定工具、路径和交付范围。
 | `init_reconstruction.py` | 建立非破坏性的 `.gcw/` 项目记录 |
 | `finalize_teardown.py` | 校验兄弟 Skill 产物并定稿 SITE_SPEC |
 | `site_inventory.mjs` | 盘点路由并生成站点、路由图、网络和 Source Map 证据 |
+| `detect_interaction_states.mjs` | 生成待复核的 hover、focus、展开状态与前后截图证据 |
 | `capture_compare.mjs` | 在一致条件下采集状态，并显式启用脱敏 SPA HAR 录制/回放 |
 | `batch_image_diff.py` | 生成指标、Diff 图和 Markdown/JSON 报告 |
 | `route_smoke.py` | 检查预览路由与代表性文字 |

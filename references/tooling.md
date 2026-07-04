@@ -6,6 +6,7 @@ Use automation for deterministic collection and transformation. Use browser insp
 |---|---|---|
 | `init_reconstruction.py` | Create non-destructive `.gcw/` evidence scaffolding | run state, known gaps, QA matrix, scenario config |
 | `site_inventory.mjs` | Crawl public same-origin routes and record network, surface, and source-map resources | `site-inventory.json`, `route-map.json`, `network/requests.json`, `source-maps.json` |
+| `detect_interaction_states.mjs` | Detect reviewable hover, focus, and common expanded-state evidence | `interaction-states.json` + before/after PNGs |
 | `capture_compare.mjs` | Capture source/candidate pairs; explicitly record or replay redacted per-scenario SPA HAR fixtures | PNG pairs + capture manifest + optional HAR files |
 | `image_diff.py` | Compare one same-size screenshot pair | JSON metric and optional diff image |
 | `batch_image_diff.py` | Compare every `*.source.png`/`*.candidate.png` pair | JSON, Markdown and diff images |
@@ -32,6 +33,8 @@ The installed CI workflow assumes Vite-style `npm run build` and `npm run previe
 ## Determinism model
 
 Every capture scenario must define `readySelector` or `readyFunction`. Replace the example `document.readyState === 'complete'` condition with an application-specific observable condition for animated sites, such as the final shell being visible or a loading canvas being removed.
+
+Interaction detection is a bounded reconnaissance pass, not a general crawler. It reads accessible CSSOM rules for direct `:hover`, `:focus`, and `:focus-visible` candidates, exercises common `aria-expanded` controls, and keeps only candidates with an observed style, attribute, or viewport-pixel change. It records console and HTTP errors for review. Run it separately for desktop/mobile viewports when both matter; cross-origin CSS and multi-step application states require manual evidence.
 
 `capture_compare.mjs` launches source and candidate in separate browser processes so heavy WebGL contexts do not starve each other. It injects the same seeded `Math.random`, installs the same virtual clock before navigation, advances both pages in equal 16 ms steps until both satisfy readiness, then advances the same settling and input delay. CSS/compositor animations are disabled during screenshot capture.
 

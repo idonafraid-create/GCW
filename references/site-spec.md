@@ -40,17 +40,24 @@ When reconnaissance confirms no qualifying GPU surface, set the decision to `not
 ```json
 {
   "schemaVersion": 1,
+  "reviewStatus": "confirmed",
   "states": [
     {
       "id": "menu-open",
       "route": "/",
       "trigger": "click header menu button",
+      "triggerType": "aria-expanded",
+      "elementSelector": "#menu-button",
       "expected": "navigation overlay is visible",
-      "evidence": ["screenshots/mobile/menu-open.png"]
+      "before": {"ariaExpanded": "false"},
+      "after": {"ariaExpanded": "true"},
+      "evidence": ["screenshots/mobile/menu.before.png", "screenshots/mobile/menu.after.png"]
     }
   ]
 }
 ```
+
+`detect_interaction_states.mjs` writes `reviewStatus: pending`. Generated evidence must be reviewed, false positives removed, missing script-driven states added, and the status changed to `confirmed` before teardown finalization. Legacy manually authored schema-v1 files without `reviewStatus` remain valid.
 
 ## SITE_SPEC synthesis rules
 
