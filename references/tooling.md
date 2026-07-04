@@ -27,6 +27,8 @@ Run `npm install`, `npm run install:browser` and `npm run check` from the GCW re
 
 The environment report separates base runtime `passed` from companion `teardownReady` and `teardownRequirements`. Standard and deep work requires teardown readiness; a green base-runtime result does not override it.
 
+The installed CI workflow assumes Vite-style `npm run build` and `npm run preview` scripts. Adapt those two steps when the target project uses another build or preview command.
+
 ## Determinism model
 
 Every capture scenario must define `readySelector` or `readyFunction`. Replace the example `document.readyState === 'complete'` condition with an application-specific observable condition for animated sites, such as the final shell being visible or a loading canvas being removed.

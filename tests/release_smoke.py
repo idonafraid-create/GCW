@@ -184,6 +184,9 @@ class ReleaseSmokeTests(unittest.TestCase):
         for workflow in workflows:
             content = workflow.read_text(encoding="utf-8")
             self.assertIsNone(re.search(r"uses:\s+[^\s#]+@v\d+", content), workflow)
+        installed_workflow = workflows[1].read_text(encoding="utf-8")
+        self.assertIn("cd .gcw\n          npx playwright install", installed_workflow)
+        self.assertNotIn("npx --prefix .gcw", installed_workflow)
 
         environment = json.loads(run(NODE, "scripts/check_environment.mjs").stdout)
         self.assertIn("teardownReady", environment)
@@ -236,7 +239,8 @@ class ReleaseSmokeTests(unittest.TestCase):
     def test_ci_installer_is_reproducible_and_non_destructive(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             project = Path(temp)
-            run(PYTHON, "scripts/install_ci.py", temp, "--source-url", "https://example.com/")
+            installed = run(PYTHON, "scripts/install_ci.py", temp, "--source-url", "https://example.com/")
+            self.assertIn("non-Vite projects", installed.stdout)
             package = json.loads((project / ".gcw" / "package.json").read_text(encoding="utf-8"))
             lock = json.loads((project / ".gcw" / "package-lock.json").read_text(encoding="utf-8"))
             self.assertEqual(package["dependencies"]["playwright"], "1.61.1")
@@ -540,13 +544,28 @@ Approved screenshots.
             self.assertIn('"status": "downloaded"', first.stdout)
             second = run(PYTHON, "scripts/download_assets.py", str(manifest), "--output", str(root / "out"))
             self.assertIn('"status": "skipped"', second.stdout)
-            manifest.write_text(json.dumps({"assets": [{
-                "sourceUrl": f"{base}/asset.bin",
-                "localPath": "../escape.bin",
-                "contentType": "application/octet-stream",
-            }]}), encoding="utf-8")
+            manifest.write_text(json.dumps({"assets": [
+                {
+                    "sourceUrl": f"{base}/asset.bin",
+                    "localPath": "../escape.bin",
+                    "contentType": "application/octet-stream",
+                },
+                {
+                    "sourceUrl": f"{base}/asset.bin",
+                    "localPath": "public/second.bin",
+                    "contentType": "application/octet-stream",
+                },
+                {
+                    "sourceUrl": f"{base}/redirect-external",
+                    "localPath": "public/external.bin",
+                },
+            ]}), encoding="utf-8")
             escaped = run(PYTHON, "scripts/download_assets.py", str(manifest), "--output", str(root / "out"), expect=1)
-            self.assertIn("localPath must stay inside output", escaped.stderr)
+            report = json.loads(escaped.stdout)
+            self.assertEqual([item["status"] for item in report["assets"]], ["failed", "downloaded", "failed"])
+            self.assertIn("localPath must stay inside output", report["assets"][0]["error"])
+            self.assertIn("redirect left source origin", report["assets"][2]["error"])
+            self.assertNotIn("Traceback", escaped.stderr)
 
 
 if __name__ == "__main__":

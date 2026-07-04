@@ -9,14 +9,26 @@ import json
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from url_safety import validate_public_url
 
 
 def origin(url: str) -> tuple[str, str, int | None]:
     parsed = urlparse(url)
-    return parsed.scheme.lower(), (parsed.hostname or "").lower(), parsed.port
+    scheme = parsed.scheme.lower()
+    return scheme, (parsed.hostname or "").lower(), parsed.port or {"http": 80, "https": 443}.get(scheme)
+
+
+class SameOriginRedirectHandler(HTTPRedirectHandler):
+    def __init__(self, source_url: str):
+        self.source_origin = origin(source_url)
+
+    def redirect_request(self, request, fp, code, message, headers, new_url):
+        validate_public_url(new_url, "redirect URL")
+        if origin(new_url) != self.source_origin:
+            raise ValueError(f"redirect left source origin: {new_url}")
+        return super().redirect_request(request, fp, code, message, headers, new_url)
 
 
 def download(item: dict[str, str], root: Path, refresh: bool, max_bytes: int) -> dict[str, str]:
@@ -35,7 +47,7 @@ def download(item: dict[str, str], root: Path, refresh: bool, max_bytes: int) ->
         if not expected or digest == expected:
             return {"localPath": str(relative), "status": "skipped", "checksumSha256": digest}
     request = Request(url, headers={"User-Agent": "GCW asset downloader/1.2"})
-    with urlopen(request, timeout=30) as response:
+    with build_opener(SameOriginRedirectHandler(url)).open(request, timeout=30) as response:
         final_url = response.geturl()
         validate_public_url(final_url, "redirect URL")
         if origin(final_url) != origin(url):
@@ -58,6 +70,18 @@ def download(item: dict[str, str], root: Path, refresh: bool, max_bytes: int) ->
     return {"localPath": str(relative), "status": "downloaded", "checksumSha256": digest}
 
 
+def download_report(item: dict[str, str], root: Path, refresh: bool, max_bytes: int) -> dict[str, str]:
+    try:
+        return download(item, root, refresh, max_bytes)
+    except Exception as error:
+        return {
+            "sourceUrl": str(item.get("sourceUrl", "")),
+            "localPath": str(item.get("localPath", "")),
+            "status": "failed",
+            "error": str(error),
+        }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("manifest", type=Path)
@@ -74,9 +98,9 @@ def main() -> int:
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
     with ThreadPoolExecutor(max_workers=args.concurrency) as executor:
-        results = list(executor.map(lambda item: download(item, output, args.refresh, args.max_bytes), manifest.get("assets", [])))
+        results = list(executor.map(lambda item: download_report(item, output, args.refresh, args.max_bytes), manifest.get("assets", [])))
     print(json.dumps({"output": str(output), "assets": results}, indent=2))
-    return 0
+    return 1 if any(item["status"] == "failed" for item in results) else 0
 
 
 if __name__ == "__main__":

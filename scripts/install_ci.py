@@ -60,7 +60,11 @@ def main() -> int:
         config["sourceUrl"] = args.source_url
         scenario_path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
 
-    print(json.dumps({"project": str(project), "files": results}, indent=2))
+    print(json.dumps({
+        "project": str(project),
+        "files": results,
+        "notes": ["The generated workflow assumes npm run build and npm run preview; adapt those steps for non-Vite projects."],
+    }, indent=2))
     return 0
 
 

@@ -7,44 +7,7 @@ import argparse
 import json
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageEnhance
-
-
-def percentile(histogram: list[int], value: float) -> int:
-    target = sum(histogram) * value
-    seen = 0
-    for index, count in enumerate(histogram):
-        seen += count
-        if seen >= target:
-            return index
-    return len(histogram) - 1
-
-
-def compare(source_path: Path, candidate_path: Path, threshold: int, diff_path: Path) -> dict:
-    source = Image.open(source_path).convert("RGB")
-    candidate = Image.open(candidate_path).convert("RGB")
-    if source.size != candidate.size:
-        return {"status": "failed", "error": f"image sizes differ: {source.size} vs {candidate.size}"}
-
-    diff = ImageChops.difference(source, candidate)
-    pixels = source.width * source.height
-    pixel_data = diff.get_flattened_data() if hasattr(diff, "get_flattened_data") else diff.getdata()
-    changed = sum(1 for rgb in pixel_data if max(rgb) > threshold)
-    histogram = diff.histogram()
-    combined = [histogram[i] + histogram[256 + i] + histogram[512 + i] for i in range(256)]
-    mean_abs = sum(index * count for index, count in enumerate(combined)) / (pixels * 3)
-    diff_path.parent.mkdir(parents=True, exist_ok=True)
-    ImageEnhance.Contrast(diff).enhance(4).save(diff_path)
-    return {
-        "status": "measured",
-        "width": source.width,
-        "height": source.height,
-        "threshold": threshold,
-        "meanAbs": round(mean_abs, 6),
-        "changedPct": round(changed * 100 / pixels, 6),
-        "p95ChannelDifference": percentile(combined, 0.95),
-        "maxChannelDifference": max((i for i, count in enumerate(combined) if count), default=0),
-    }
+from image_diff import compare
 
 
 def main() -> int:
@@ -76,7 +39,10 @@ def main() -> int:
             pairs.append({"scenario": scenario, "status": "failed", "error": "candidate image missing"})
             failed = True
             continue
-        metrics = compare(source_path, candidate_path, args.threshold, diff_dir / f"{scenario}.diff.png")
+        try:
+            metrics = {"status": "measured", **compare(source_path, candidate_path, args.threshold, diff_dir / f"{scenario}.diff.png")}
+        except (OSError, ValueError) as error:
+            metrics = {"status": "failed", "error": str(error)}
         passed = (
             metrics.get("status") == "measured"
             and metrics["changedPct"] <= args.max_changed_pct

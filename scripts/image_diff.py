@@ -20,6 +20,32 @@ def percentile_from_histogram(histogram: list[int], percentile: float) -> int:
     return len(histogram) - 1
 
 
+def compare(source_path: Path, candidate_path: Path, threshold: int, diff_path: Path | None = None) -> dict:
+    source = Image.open(source_path).convert("RGB")
+    candidate = Image.open(candidate_path).convert("RGB")
+    if source.size != candidate.size:
+        raise ValueError(f"image sizes differ: {source.size} vs {candidate.size}")
+    diff = ImageChops.difference(source, candidate)
+    pixels = source.width * source.height
+    red, green, blue = diff.split()
+    maximum = ImageChops.lighter(ImageChops.lighter(red, green), blue)
+    changed = maximum.point(lambda value: 255 if value > threshold else 0).histogram()[255]
+    histogram = diff.histogram()
+    combined = [histogram[i] + histogram[256 + i] + histogram[512 + i] for i in range(256)]
+    if diff_path:
+        diff_path.parent.mkdir(parents=True, exist_ok=True)
+        ImageEnhance.Contrast(diff).enhance(4).save(diff_path)
+    return {
+        "width": source.width,
+        "height": source.height,
+        "threshold": threshold,
+        "meanAbs": round(sum(index * count for index, count in enumerate(combined)) / (pixels * 3), 6),
+        "changedPct": round(changed * 100 / pixels, 6),
+        "p95ChannelDifference": percentile_from_histogram(combined, 0.95),
+        "maxChannelDifference": max((i for i, count in enumerate(combined) if count), default=0),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("source", type=Path)
@@ -30,34 +56,11 @@ def main() -> int:
     if not 0 <= args.threshold <= 255:
         parser.error("--threshold must be between 0 and 255")
 
-    source = Image.open(args.source).convert("RGB")
-    candidate = Image.open(args.candidate).convert("RGB")
-    if source.size != candidate.size:
-        parser.error(f"image sizes differ: {source.size} vs {candidate.size}")
-
-    diff = ImageChops.difference(source, candidate)
-    pixels = source.width * source.height
-    pixel_data = diff.get_flattened_data() if hasattr(diff, "get_flattened_data") else diff.getdata()
-    changed = sum(1 for rgb in pixel_data if max(rgb) > args.threshold)
-    histogram = diff.histogram()
-    mean_abs = sum(value * count for value in range(256) for count in (
-        histogram[value] + histogram[256 + value] + histogram[512 + value],
-    )) / (pixels * 3)
-    combined = [histogram[i] + histogram[256 + i] + histogram[512 + i] for i in range(256)]
-
-    if args.diff:
-        args.diff.parent.mkdir(parents=True, exist_ok=True)
-        ImageEnhance.Contrast(diff).enhance(4).save(args.diff)
-
-    print(json.dumps({
-        "width": source.width,
-        "height": source.height,
-        "threshold": args.threshold,
-        "meanAbs": round(mean_abs, 6),
-        "changedPct": round(changed * 100 / pixels, 6),
-        "p95ChannelDifference": percentile_from_histogram(combined, 0.95),
-        "maxChannelDifference": max(i for i, count in enumerate(combined) if count),
-    }, indent=2))
+    try:
+        result = compare(args.source, args.candidate, args.threshold, args.diff)
+    except ValueError as error:
+        parser.error(str(error))
+    print(json.dumps(result, indent=2))
     return 0
 
 
