@@ -5,7 +5,7 @@ Use automation for deterministic collection and transformation. Use browser insp
 | Tool | Purpose | Main output |
 |---|---|---|
 | `init_reconstruction.py` | Create non-destructive `.gcw/` evidence scaffolding | run state, known gaps, QA matrix, scenario config |
-| `site_inventory.mjs` | Crawl public same-origin routes and record network, surface, and source-map resources | `site-inventory.json`, `route-map.json`, `network/requests.json`, `source-maps.json` |
+| `site_inventory.mjs` | Crawl public same-origin routes and validate bounded Source Map evidence | `site-inventory.json`, `route-map.json`, `network/requests.json`, `source-maps.json` |
 | `detect_interaction_states.mjs` | Detect reviewable hover, focus, and common expanded-state evidence | `interaction-states.json` + before/after PNGs |
 | `capture_compare.mjs` | Capture source/candidate pairs; explicitly record or replay redacted per-scenario SPA HAR fixtures | PNG pairs + capture manifest + optional HAR files |
 | `image_diff.py` | Compare one same-size screenshot pair | JSON metric and optional diff image |
@@ -55,6 +55,7 @@ This greatly reduces dynamic noise but cannot guarantee a zero diff for GPU driv
 - Use the final canonical URL. GCW performs a manual redirect-chain preflight and rejects document redirects that leave the configured origin.
 - Do not submit forms, guess passcodes or bypass access controls.
 - Inventory scripts collect URLs and metadata; they do not archive private responses.
+- Source Map probes distinguish HTTP reachability from a valid v3 map and read at most 20 MiB per candidate by default; use `--source-map-max-bytes` to set a different explicit limit.
 - Review manifests for query strings or secrets before committing.
 - Treat capture configuration as executable code because `readyFunction` runs in the page; review third-party configs before use.
 - Inventory and route checks do not consult `robots.txt` because GCW requires ownership or explicit authorization before collection.

@@ -55,7 +55,7 @@ Run inventory where Playwright is available:
 node <skill-root>/scripts/site_inventory.mjs --url <canonical-url> --out <workspace>/.gcw/evidence/site-inventory.json
 ```
 
-This command also writes `.gcw/evidence/route-map.json`, `.gcw/evidence/network/requests.json`, and `.gcw/evidence/source-maps.json`. Source-map evidence records response-header or comment directives, conventional `.map` probes, reachability, and redacted URLs.
+This command also writes `.gcw/evidence/route-map.json`, `.gcw/evidence/network/requests.json`, and `.gcw/evidence/source-maps.json`. Source-map evidence records response-header or comment directives, conventional `.map` probes, redacted URLs, bounded body size, and whether the response is a valid Source Map v3 object. HTTP reachability alone does not count as an accessible Source Map. The default body limit is 20 MiB; override it explicitly with `--source-map-max-bytes` when authorized evidence requires more.
 
 Generate a narrow interaction-state draft where Playwright is available:
 

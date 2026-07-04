@@ -37,38 +37,145 @@ function conventionalSourceMapUrl(resourceUrl) {
   return url.href;
 }
 
-async function probeSourceMap(value, resourceUrl, timeout) {
+function isSourceMapV3(value, depth = 0) {
+  if (!value || typeof value !== "object" || value.version !== 3 || depth > 8) return false;
+  if (Array.isArray(value.sources) && typeof value.mappings === "string") return true;
+  if (!Array.isArray(value.sections)) return false;
+  return value.sections.every((section) => {
+    const offset = section?.offset;
+    const validOffset = Number.isInteger(offset?.line) && offset.line >= 0 && Number.isInteger(offset?.column) && offset.column >= 0;
+    return validOffset && (typeof section.url === "string" || isSourceMapV3(section.map, depth + 1));
+  });
+}
+
+function validateSourceMapBody(body) {
+  try {
+    const value = JSON.parse(body.toString("utf8"));
+    if (!isSourceMapV3(value)) {
+      return { validSourceMap: false, validationError: "response is not a valid Source Map v3 object" };
+    }
+    return { validSourceMap: true, validationError: null };
+  } catch {
+    return { validSourceMap: false, validationError: "response is not valid Source Map JSON" };
+  }
+}
+
+async function readBoundedBody(response, maxBytes) {
+  const contentLength = Number(response.headers.get("content-length"));
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+    await response.body?.cancel();
+    throw new Error(`source map body exceeds ${maxBytes} bytes`);
+  }
+  if (!response.body) return Buffer.alloc(0);
+  const reader = response.body.getReader();
+  const chunks = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) throw new Error(`source map body exceeds ${maxBytes} bytes`);
+      chunks.push(Buffer.from(value));
+    }
+  } catch (error) {
+    await reader.cancel().catch(() => {});
+    throw error;
+  }
+  return Buffer.concat(chunks, total);
+}
+
+function decodeEmbeddedSourceMap(value, maxBytes) {
+  const separator = value.indexOf(",");
+  if (separator < 0) throw new Error("embedded source map data URL is malformed");
+  const metadata = value.slice(5, separator);
+  const encoded = value.slice(separator + 1);
+  const body = metadata.split(";").includes("base64") ? Buffer.from(encoded, "base64") : Buffer.from(decodeURIComponent(encoded));
+  if (body.byteLength > maxBytes) throw new Error(`source map body exceeds ${maxBytes} bytes`);
+  return { body, contentType: metadata.split(";", 1)[0] || "application/json" };
+}
+
+async function probeSourceMap(value, resourceUrl, timeout, maxBytes) {
   if (value.startsWith("data:")) {
-    return { mapUrl: "data:embedded", finalUrl: null, status: null, accessible: true, embedded: true, contentType: null };
+    try {
+      const { body, contentType } = decodeEmbeddedSourceMap(value, maxBytes);
+      const validation = validateSourceMapBody(body);
+      return {
+        mapUrl: "data:embedded", finalUrl: null, status: null, reachable: true,
+        accessible: validation.validSourceMap, embedded: true, contentType, bodyBytes: body.byteLength, ...validation,
+      };
+    } catch (error) {
+      return {
+        mapUrl: "data:embedded", finalUrl: null, status: null, reachable: true,
+        accessible: false, embedded: true, contentType: null, bodyBytes: null,
+        validSourceMap: false, validationError: error.message,
+      };
+    }
   }
   let current = parsePublicHttpUrl(new URL(value, resourceUrl).href, "source map URL", { allowSensitiveQuery: true });
   for (let hop = 0; hop < 10; hop += 1) {
     const response = await fetch(current, { redirect: "manual", signal: AbortSignal.timeout(timeout) });
     const contentType = response.headers.get("content-type");
-    await response.body?.cancel();
     if (response.status < 300 || response.status >= 400) {
+      if (!response.ok) {
+        await response.body?.cancel();
+        return {
+          mapUrl: sanitizeUrl(new URL(value, resourceUrl).href), finalUrl: sanitizeUrl(current.href),
+          status: response.status, reachable: false, accessible: false, embedded: false,
+          contentType, bodyBytes: 0, validSourceMap: false, validationError: `source map returned HTTP ${response.status}`,
+        };
+      }
+      try {
+        const body = await readBoundedBody(response, maxBytes);
+        const validation = validateSourceMapBody(body);
+        return {
+          mapUrl: sanitizeUrl(new URL(value, resourceUrl).href),
+          finalUrl: sanitizeUrl(current.href),
+          status: response.status,
+          reachable: true,
+          accessible: validation.validSourceMap,
+          embedded: false,
+          contentType,
+          bodyBytes: body.byteLength,
+          ...validation,
+        };
+      } catch (error) {
+        return {
+          mapUrl: sanitizeUrl(new URL(value, resourceUrl).href), finalUrl: sanitizeUrl(current.href),
+          status: response.status, reachable: true, accessible: false, embedded: false,
+          contentType, bodyBytes: null, validSourceMap: false, validationError: error.message,
+        };
+      }
+    }
+    await response.body?.cancel();
+    const location = response.headers.get("location");
+    if (!location) {
       return {
         mapUrl: sanitizeUrl(new URL(value, resourceUrl).href),
         finalUrl: sanitizeUrl(current.href),
         status: response.status,
-        accessible: response.ok,
+        reachable: false,
+        accessible: false,
         embedded: false,
         contentType,
+        bodyBytes: 0,
+        validSourceMap: false,
+        validationError: "source map redirect has no location",
       };
     }
-    const location = response.headers.get("location");
-    if (!location) break;
     current = parsePublicHttpUrl(new URL(location, current).href, "source map redirect", { allowSensitiveQuery: true });
   }
   throw new Error("source map probe exceeded 10 redirects");
 }
 
-async function inspectSourceMap(response, timeout) {
+async function inspectSourceMap(response, timeout, maxBytes) {
   const resourceUrl = response.url();
+  let reference = null;
+  let candidate = conventionalSourceMapUrl(resourceUrl);
   try {
-    const reference = sourceMapReference(response, (await response.body()).toString("utf8"));
-    const candidate = reference?.value || conventionalSourceMapUrl(resourceUrl);
-    const probe = await probeSourceMap(candidate, resourceUrl, timeout);
+    reference = sourceMapReference(response, (await response.body()).toString("utf8"));
+    candidate = reference?.value || candidate;
+    const probe = await probeSourceMap(candidate, resourceUrl, timeout, maxBytes);
     return {
       resourceUrl: sanitizeUrl(resourceUrl),
       resourceType: response.request().resourceType(),
@@ -80,20 +187,24 @@ async function inspectSourceMap(response, timeout) {
     return {
       resourceUrl: sanitizeUrl(resourceUrl),
       resourceType: response.request().resourceType(),
-      directive: null,
-      mapUrl: sanitizeUrl(conventionalSourceMapUrl(resourceUrl)),
+      directive: reference?.directive || null,
+      mapUrl: candidate.startsWith("data:") ? "data:embedded" : sanitizeUrl(new URL(candidate, resourceUrl).href),
       finalUrl: null,
       status: null,
+      reachable: false,
       accessible: false,
       embedded: false,
       contentType: null,
+      bodyBytes: null,
+      validSourceMap: false,
+      validationError: null,
       error: sanitizeText(error.message),
     };
   }
 }
 
 function parseArgs(argv) {
-  const args = { maxRoutes: 25, timeout: 20000, settleMs: 700, executablePath: "", viewport: { width: 1280, height: 720 } };
+  const args = { maxRoutes: 25, timeout: 20000, settleMs: 700, sourceMapMaxBytes: 20 * 1024 * 1024, executablePath: "", viewport: { width: 1280, height: 720 } };
   for (let i = 0; i < argv.length; i += 1) {
     const key = argv[i];
     const value = argv[i + 1];
@@ -102,6 +213,7 @@ function parseArgs(argv) {
     else if (key === "--max-routes") args.maxRoutes = Number(value), i += 1;
     else if (key === "--timeout") args.timeout = Number(value), i += 1;
     else if (key === "--settle-ms") args.settleMs = Number(value), i += 1;
+    else if (key === "--source-map-max-bytes") args.sourceMapMaxBytes = Number(value), i += 1;
     else if (key === "--executable-path") args.executablePath = value, i += 1;
     else if (key === "--viewport") {
       const match = /^(\d+)x(\d+)$/.exec(value || "");
@@ -116,6 +228,7 @@ function parseArgs(argv) {
   if (!Number.isInteger(args.maxRoutes) || args.maxRoutes <= 0) throw new Error("--max-routes must be a positive integer");
   if (!Number.isFinite(args.timeout) || args.timeout <= 0) throw new Error("--timeout must be a positive number");
   if (!Number.isFinite(args.settleMs) || args.settleMs < 0) throw new Error("--settle-ms must be zero or greater");
+  if (!Number.isInteger(args.sourceMapMaxBytes) || args.sourceMapMaxBytes <= 0) throw new Error("--source-map-max-bytes must be a positive integer");
   if (args.viewport.width < 1 || args.viewport.height < 1) throw new Error("--viewport dimensions must be positive");
   return args;
 }
@@ -241,7 +354,7 @@ async function main() {
       current.mimeType = response.headers()["content-type"] || null;
       resources.set(response.url(), current);
       if (isSourceMappable(response) && !sourceMapTasks.has(response.url())) {
-        sourceMapTasks.set(response.url(), inspectSourceMap(response, args.timeout));
+        sourceMapTasks.set(response.url(), inspectSourceMap(response, args.timeout, args.sourceMapMaxBytes));
       }
     });
 
@@ -278,6 +391,7 @@ async function main() {
     const sourceMaps = {
       schemaVersion: 1,
       generatedAt: new Date().toISOString(),
+      limits: { maxBodyBytes: args.sourceMapMaxBytes },
       resources: (await Promise.all(sourceMapTasks.values())).sort((a, b) => a.resourceUrl.localeCompare(b.resourceUrl)),
     };
     const output = {
@@ -285,7 +399,7 @@ async function main() {
       generatedAt: new Date().toISOString(),
       canonicalUrl: sanitizeUrl(canonical.href),
       origin: canonical.origin,
-      limits: { maxRoutes: args.maxRoutes, timeout: args.timeout, settleMs: args.settleMs, viewport: args.viewport },
+      limits: { maxRoutes: args.maxRoutes, timeout: args.timeout, settleMs: args.settleMs, sourceMapMaxBytes: args.sourceMapMaxBytes, viewport: args.viewport },
       routes,
       resources: [...resources.values()].sort((a, b) => a.url.localeCompare(b.url)),
     };

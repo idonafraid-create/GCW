@@ -68,11 +68,21 @@ class FixtureHandler(BaseHTTPRequestHandler):
             body = b"body { color: white; }"
             content_type = "text/css"
             source_map_header = "/styles.css.map"
+        elif self.path == "/invalid.css.map":
+            body = b'{"version":3,"sources":[]}'
+            content_type = "application/json"
+        elif self.path == "/invalid.css":
+            body = b"aside { display: block; }"
+            content_type = "text/css"
+            source_map_header = "/invalid.css.map"
         elif self.path == "/plain.css.map":
             body = b'{"version":3,"sources":["plain.scss"],"names":[],"mappings":""}'
             content_type = "application/json"
         elif self.path == "/plain.css":
             body = b"html { background: black; }"
+            content_type = "text/css"
+        elif self.path == "/missing.css":
+            body = b"main { display: block; }"
             content_type = "text/css"
         elif self.path == "/spa":
             body = b"""<!doctype html><title>SPA fixture</title>
@@ -110,7 +120,7 @@ document.querySelector('#expand').addEventListener('click', event => {
             return
         else:
             body = b"""<!doctype html>
-<html><head><title>GCW fixture</title><link rel='stylesheet' href='/styles.css'><link rel='stylesheet' href='/plain.css'><script src='/asset.js?x-amz-signature=topsecret'></script></head>
+<html><head><title>GCW fixture</title><link rel='stylesheet' href='/styles.css'><link rel='stylesheet' href='/invalid.css'><link rel='stylesheet' href='/plain.css'><link rel='stylesheet' href='/missing.css'><script src='/asset.js?x-amz-signature=topsecret'></script></head>
 <body style='margin:0;background:#ff0000;min-height:100vh'><a href='/child'>Child</a>
 <canvas id='unused'></canvas><canvas id='used'></canvas>
 <script>
@@ -408,15 +418,36 @@ class ReleaseSmokeTests(unittest.TestCase):
             self.assertEqual(script["directive"], "sourceMappingURL")
             self.assertEqual(script["mapUrl"], f"{base}/asset.js.map?token=REDACTED")
             self.assertEqual(script["status"], 200)
+            self.assertTrue(script["validSourceMap"])
             stylesheet = next(item for item in source_maps["resources"] if item["resourceUrl"].endswith("/styles.css"))
             self.assertEqual(stylesheet["directive"], "X-SourceMap")
             self.assertEqual(stylesheet["mapUrl"], f"{base}/styles.css.map")
             self.assertEqual(stylesheet["status"], 200)
+            self.assertTrue(stylesheet["validSourceMap"])
             conventional = next(item for item in source_maps["resources"] if item["resourceUrl"].endswith("/plain.css"))
             self.assertIsNone(conventional["directive"])
             self.assertEqual(conventional["mapUrl"], f"{base}/plain.css.map")
             self.assertTrue(conventional["accessible"])
+            missing = next(item for item in source_maps["resources"] if item["resourceUrl"].endswith("/missing.css"))
+            self.assertEqual(missing["status"], 200)
+            self.assertTrue(missing["reachable"])
+            self.assertFalse(missing["validSourceMap"])
+            self.assertFalse(missing["accessible"])
+            self.assertIn("valid Source Map", missing["validationError"])
+            invalid = next(item for item in source_maps["resources"] if item["resourceUrl"].endswith("/invalid.css"))
+            self.assertFalse(invalid["validSourceMap"])
+            self.assertIn("valid Source Map v3 object", invalid["validationError"])
             self.assertNotIn("mapsecret", json.dumps(source_maps))
+
+            bounded = Path(temp) / "bounded.json"
+            run(
+                NODE, "scripts/site_inventory.mjs", "--url", base, "--out", str(bounded),
+                "--settle-ms", "0", "--source-map-max-bytes", "32",
+            )
+            bounded_maps = json.loads((Path(temp) / "source-maps.json").read_text(encoding="utf-8"))
+            bounded_script = next(item for item in bounded_maps["resources"] if "/asset.js?" in item["resourceUrl"])
+            self.assertFalse(bounded_script["validSourceMap"])
+            self.assertIn("exceeds", bounded_script["validationError"])
 
             redirected = Path(temp) / "redirected.json"
             run(NODE, "scripts/site_inventory.mjs", "--url", f"{base}/redirect-external", "--out", str(redirected), "--settle-ms", "0")
