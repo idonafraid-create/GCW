@@ -32,6 +32,25 @@ When a Canvas/WebGL/WebGPU/shader target exists, set `gpu-decision.json.decision
 
 When reconnaissance confirms no qualifying GPU surface, set the decision to `not-applicable` and record checked surfaces plus detection-evidence paths. Do not create fake Shader artifacts.
 
+## Interaction-state schema
+
+`interaction-states.json` uses schema version 1 and requires at least one observed state. Every state records the route, trigger, expected result, and evidence paths:
+
+```json
+{
+  "schemaVersion": 1,
+  "states": [
+    {
+      "id": "menu-open",
+      "route": "/",
+      "trigger": "click header menu button",
+      "expected": "navigation overlay is visible",
+      "evidence": ["screenshots/mobile/menu-open.png"]
+    }
+  ]
+}
+```
+
 ## SITE_SPEC synthesis rules
 
 - Design DNA answers what the design looks and feels like.

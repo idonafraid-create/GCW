@@ -108,8 +108,19 @@ def complete_teardown_artifacts(workspace: Path, gpu_required: bool = False) -> 
     }
     design_path = root / "evidence" / "design-dna" / "design-dna.json"
     design_path.write_text(json.dumps(design), encoding="utf-8")
-    for name in ("site-inventory.json", "route-map.json", "interaction-states.json"):
-        (root / "evidence" / name).write_text(json.dumps({"fixture": True}), encoding="utf-8")
+    (root / "evidence" / "site-inventory.json").write_text(json.dumps({"fixture": True}), encoding="utf-8")
+    (root / "evidence" / "route-map.json").write_text(json.dumps({"routes": [{"route": "/"}]}), encoding="utf-8")
+    interaction_states = {
+        "schemaVersion": 1,
+        "states": [{
+            "id": "home-stable",
+            "route": "/",
+            "trigger": "initial load",
+            "expected": "stable home view",
+            "evidence": ["screenshots/desktop/home.png"],
+        }],
+    }
+    (root / "evidence" / "interaction-states.json").write_text(json.dumps(interaction_states), encoding="utf-8")
     (root / "evidence" / "screenshots" / "desktop" / "home.png").write_bytes(b"fixture-desktop")
     (root / "evidence" / "screenshots" / "mobile" / "home.png").write_bytes(b"fixture-mobile")
     (root / "evidence" / "network" / "requests.json").write_text(json.dumps({"requests": []}), encoding="utf-8")
@@ -184,6 +195,7 @@ class ReleaseSmokeTests(unittest.TestCase):
             self.assertEqual(state["permissionBoundary"], "unconfirmed")
             self.assertEqual(state["currentPhase"], "TEARDOWN_PHASE")
             self.assertEqual(state["outcome"], "teardown")
+            self.assertEqual(state["reviewDecisions"], [])
             self.assertEqual(state["conditionalGates"]["assetProvenance"], "enable-when-asset-heavy-offline-or-maintained")
             self.assertTrue(state["conditionalGates"]["designDna"])
             self.assertEqual(state["conditionalGates"]["gpuForensics"], "required-when-canvas-webgl-webgpu-or-shaders-detected")
@@ -270,6 +282,10 @@ class ReleaseSmokeTests(unittest.TestCase):
             self.assertIn("REDACTED", serialized)
             canvases = report["routes"][0]["surface"]["canvases"]
             self.assertEqual([canvas["context"] for canvas in canvases], ["unknown", "2d"])
+            route_map = json.loads((Path(temp) / "route-map.json").read_text(encoding="utf-8"))
+            self.assertEqual({item["route"] for item in route_map["routes"]}, {"/", "/child"})
+            network = json.loads((Path(temp) / "network" / "requests.json").read_text(encoding="utf-8"))
+            self.assertTrue(any(item["url"].endswith("/asset.js?x-amz-signature=REDACTED") for item in network["requests"]))
 
             redirected = Path(temp) / "redirected.json"
             run(NODE, "scripts/site_inventory.mjs", "--url", f"{base}/redirect-external", "--out", str(redirected), "--settle-ms", "0")
@@ -348,10 +364,38 @@ class ReleaseSmokeTests(unittest.TestCase):
             run(PYTHON, "scripts/finalize_teardown.py", temp)
             run(PYTHON, "scripts/finalize_teardown.py", temp)
             run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "FAITHFUL_CLONE")
+            missing_report = run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "REVIEW_GATE", expect=2)
+            self.assertIn("CLONE_REPORT.md", missing_report.stderr)
+            (Path(temp) / ".gcw" / "CLONE_REPORT.md").write_text("# Clone report\n\nBaseline verified.\n", encoding="utf-8")
             run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "REVIEW_GATE")
-            run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "CREATIVE_REBUILD")
-            self.assertTrue((Path(temp) / ".gcw" / "CREATIVE_BRIEF.md").is_file())
+            mismatched_decision = run(
+                PYTHON, "scripts/advance_workflow.py", temp,
+                "--to", "CREATIVE_REBUILD", "--decision", "A", expect=2,
+            )
+            self.assertIn("requires --to FAITHFUL_CLONE", mismatched_decision.stderr)
+            missing_decision = run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "CREATIVE_REBUILD", expect=2)
+            self.assertIn("--decision", missing_decision.stderr)
+            missing_brief = run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "CREATIVE_REBUILD", "--decision", "C", expect=2)
+            self.assertIn("CREATIVE_BRIEF.md", missing_brief.stderr)
+            brief = """# Creative brief
+
+## Keep
+Layout.
+## Remove
+Original branding.
+## Change
+Content.
+## New brand, content, and features
+New identity.
+## Innovation direction
+Editorial motion.
+## Final acceptance target
+Approved screenshots.
+"""
+            (Path(temp) / ".gcw" / "CREATIVE_BRIEF.md").write_text(brief, encoding="utf-8")
+            run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "CREATIVE_REBUILD", "--decision", "C")
             state = json.loads((Path(temp) / ".gcw" / "run-state.json").read_text(encoding="utf-8"))
+            self.assertEqual(state["reviewDecisions"][-1]["decision"], "C")
             self.assertEqual(state["analysisGates"], {"designDna": "complete", "gpuForensics": "not-applicable", "teardown": "passed"})
             manifest = json.loads((Path(temp) / ".gcw" / "teardown-manifest.json").read_text(encoding="utf-8"))
             self.assertEqual(manifest["status"], "passed")
@@ -396,13 +440,43 @@ class ReleaseSmokeTests(unittest.TestCase):
             spec_path.write_text(valid_spec, encoding="utf-8")
             run(PYTHON, "scripts/finalize_teardown.py", temp)
 
+    def test_teardown_validation_failure_does_not_finalize_site_spec(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Path(temp)
+            run(PYTHON, "scripts/init_reconstruction.py", temp, "--url", "https://example.com/")
+            complete_teardown_artifacts(workspace)
+            index_path = workspace / ".gcw" / "evidence" / "evidence-index.json"
+            index_path.write_text("not json", encoding="utf-8")
+            blocked = run(PYTHON, "scripts/finalize_teardown.py", temp, expect=1)
+            self.assertIn("invalid JSON artifact", blocked.stderr)
+            spec = (workspace / ".gcw" / "SITE_SPEC.md").read_text(encoding="utf-8")
+            self.assertIn("Status: DRAFT", spec)
+            self.assertNotIn("Status: FINAL", spec)
+
     def test_runtime_independence_blocks_source_origin(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             evidence = Path(temp) / "network.json"
             evidence.write_text(json.dumps({"requests": ["https://source.example/app.js", "https://cdn.example/a.js"]}), encoding="utf-8")
-            blocked = run(PYTHON, "scripts/check_runtime_independence.py", str(evidence), "--source-url", "https://source.example", expect=1)
+            build = Path(temp) / "dist"
+            build.mkdir()
+            (build / "index.js").write_text("const api = 'https://cdn.example/a.js';", encoding="utf-8")
+            blocked = run(
+                PYTHON, "scripts/check_runtime_independence.py", str(evidence),
+                "--source-url", "https://source.example:443", "--build-dir", str(build), expect=1,
+            )
             self.assertIn("source.example/app.js", blocked.stdout)
-            run(PYTHON, "scripts/check_runtime_independence.py", str(evidence), "--source-url", "https://source.example", "--allow-origin", "https://source.example")
+            evidence.write_text(json.dumps({"requests": ["https://cdn.example/a.js"]}), encoding="utf-8")
+            (build / "index.js").write_text("const api = 'https://source.example/runtime';", encoding="utf-8")
+            build_blocked = run(
+                PYTHON, "scripts/check_runtime_independence.py", str(evidence),
+                "--source-url", "https://source.example", "--build-dir", str(build), expect=1,
+            )
+            self.assertIn("index.js", build_blocked.stdout)
+            (build / "index.js").write_text("const api = 'https://cdn.example/a.js';", encoding="utf-8")
+            run(
+                PYTHON, "scripts/check_runtime_independence.py", str(evidence),
+                "--source-url", "https://source.example", "--build-dir", str(build),
+            )
 
     def test_asset_downloader_checks_type_checksum_and_is_idempotent(self) -> None:
         with fixture_server() as base, tempfile.TemporaryDirectory() as temp:

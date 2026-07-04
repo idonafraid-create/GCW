@@ -53,6 +53,8 @@ Run inventory where Playwright is available:
 node scripts/site_inventory.mjs --url <canonical-url> --out <workspace>/.gcw/evidence/site-inventory.json
 ```
 
+This command also writes `.gcw/evidence/route-map.json` and `.gcw/evidence/network/requests.json`. Fill `.gcw/evidence/interaction-states.json` with at least one observed state using the schema in `references/site-spec.md`.
+
 Verify routes, breakpoints, DOM roots, overlays, scroll containers, input states, loading/stable states, GPU/media/workers/iframes, and external data manually.
 
 During every `TEARDOWN_PHASE`, invoke `design-dna` and preserve its complete JSON at `.gcw/evidence/design-dna/design-dna.json`. Summarize implementation-critical findings in `SITE_SPEC.md`; do not copy the sibling schema into a second GCW document. If `design-dna` is unavailable, stop and tell the user what must be installed; do not substitute an unstructured guess.
@@ -96,7 +98,7 @@ Present the baseline, preview, screenshots, Diff, `CLONE_REPORT.md`, and Known G
 - B: baseline accepted; stop.
 - C: baseline accepted for innovation; create `.gcw/CREATIVE_BRIEF.md`, then enter `CREATIVE_REBUILD`.
 
-Use `scripts/advance_workflow.py` to record transitions. It refuses to leave teardown until `finalize_teardown.py` has passed. The creative brief states what to keep, remove, change, add, the innovation direction, and final acceptance target.
+Use `scripts/advance_workflow.py` to record transitions. Entering `REVIEW_GATE` requires a non-empty `CLONE_REPORT.md`; leaving it requires `--decision A|B|C`, and the selected destination must match the list above. Decision C additionally requires a completed `CREATIVE_BRIEF.md`; the script never creates or fills that proof itself. It refuses to leave teardown until `finalize_teardown.py` has passed.
 
 ## 7. Close out honestly
 

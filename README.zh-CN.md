@@ -181,14 +181,14 @@ GCW 会先做一次简短预判，再决定工具、路径和交付范围。
 |---|---|
 | `init_reconstruction.py` | 建立非破坏性的 `.gcw/` 项目记录 |
 | `finalize_teardown.py` | 校验兄弟 Skill 产物并定稿 SITE_SPEC |
-| `site_inventory.mjs` | 盘点公开路由、资源、字体和渲染区域 |
+| `site_inventory.mjs` | 盘点路由并生成站点、路由图和网络证据 |
 | `capture_compare.mjs` | 在一致条件下截取源站和本地版本状态 |
 | `batch_image_diff.py` | 生成指标、Diff 图和 Markdown/JSON 报告 |
 | `route_smoke.py` | 检查预览路由与代表性文字 |
 | `install_ci.py` | 安装 GCW 视觉回归 Runner 和工作流 |
 | `advance_workflow.py` | 记录合法的阶段与评审门转换 |
 | `download_assets.py` | 按清单可重复下载已授权资产 |
-| `check_runtime_independence.py` | 阻止未声明的源站运行时请求 |
+| `check_runtime_independence.py` | 阻止源站请求及最终构建中嵌入的源站 URL |
 | `blender_replace_text.py` | 可选：处理已烘焙进 GLTF/GLB 几何体的文字 |
 
 Agent 完整流程见 [SKILL.md](./SKILL.md)。[references](./references/) 中定义了阶段、SITE_SPEC、资产来源、运行时独立性、生产恢复、QA、工具和专项情况。

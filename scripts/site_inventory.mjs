@@ -196,9 +196,34 @@ async function main() {
       routes,
       resources: [...resources.values()].sort((a, b) => a.url.localeCompare(b.url)),
     };
-    await mkdir(path.dirname(path.resolve(args.out)), { recursive: true });
-    await writeFile(path.resolve(args.out), `${JSON.stringify(output, null, 2)}\n`, "utf8");
-    console.log(JSON.stringify({ out: path.resolve(args.out), routes: routes.length, resources: output.resources.length }, null, 2));
+    const inventoryPath = path.resolve(args.out);
+    const evidenceDir = path.dirname(inventoryPath);
+    const routeMapPath = path.join(evidenceDir, "route-map.json");
+    const networkPath = path.join(evidenceDir, "network", "requests.json");
+    const routeMap = {
+      schemaVersion: 1,
+      generatedAt: output.generatedAt,
+      routes: routes.map(({ route, url, status, error }) => ({ route, url, status, error })),
+    };
+    const network = {
+      schemaVersion: 1,
+      generatedAt: output.generatedAt,
+      requests: output.resources,
+    };
+    await mkdir(evidenceDir, { recursive: true });
+    await mkdir(path.dirname(networkPath), { recursive: true });
+    await Promise.all([
+      writeFile(inventoryPath, `${JSON.stringify(output, null, 2)}\n`, "utf8"),
+      writeFile(routeMapPath, `${JSON.stringify(routeMap, null, 2)}\n`, "utf8"),
+      writeFile(networkPath, `${JSON.stringify(network, null, 2)}\n`, "utf8"),
+    ]);
+    console.log(JSON.stringify({
+      out: inventoryPath,
+      routeMap: routeMapPath,
+      network: networkPath,
+      routes: routes.length,
+      resources: output.resources.length,
+    }, null, 2));
   } finally {
     await browser.close();
   }

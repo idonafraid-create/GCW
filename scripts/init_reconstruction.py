@@ -14,12 +14,8 @@ from url_safety import validate_public_url, validate_relative_route
 EVIDENCE_DIRS = (
     "screenshots/desktop",
     "screenshots/mobile",
-    "dom",
     "network",
-    "runtime",
-    "source",
     "design-dna",
-    "gpu",
     "web-shader-extractor/evidence",
 )
 
@@ -94,6 +90,7 @@ def main() -> int:
             "designDna": "pending",
             "gpuForensics": "pending-detection",
         },
+        "reviewDecisions": [],
         "state": "TEARDOWN_PHASE",
         "gates": {
             "scope": False,
@@ -142,7 +139,7 @@ def main() -> int:
         evidence / "web-shader-extractor" / "gpu-decision.json": (Path(__file__).resolve().parent.parent / "assets" / "gpu-decision.template.json").read_text(encoding="utf-8"),
         evidence / "site-inventory.json": "{}\n",
         evidence / "route-map.json": "{}\n",
-        evidence / "interaction-states.json": "{}\n",
+        evidence / "interaction-states.json": json.dumps({"schemaVersion": 1, "states": []}, indent=2) + "\n",
         root / "known-gaps.md": "# Known gaps\n\n| Gap | Severity | Evidence | Impact | Next step |\n|---|---|---|---|---|\n",
         root / "qa-matrix.md": "# QA matrix\n\n| Scenario | Source | Candidate | Conditions | Result |\n|---|---|---|---|---|\n",
         root / "config" / "capture-scenarios.json": json.dumps(scenarios, indent=2) + "\n",

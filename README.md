@@ -181,14 +181,14 @@ Recovery provenance and replay paperwork applies only when ownership/authorizati
 |---|---|
 | `init_reconstruction.py` | Create a non-destructive `.gcw/` project record |
 | `finalize_teardown.py` | Validate companion artifacts and finalize SITE_SPEC |
-| `site_inventory.mjs` | Inventory public routes, resources, fonts and rendering surfaces |
+| `site_inventory.mjs` | Inventory routes and emit site, route-map, and network evidence |
 | `capture_compare.mjs` | Capture matched source and candidate states |
 | `batch_image_diff.py` | Generate metrics, diff images and Markdown/JSON reports |
 | `route_smoke.py` | Check preview routes and representative text |
 | `install_ci.py` | Install the GCW visual-regression runner and workflow |
 | `advance_workflow.py` | Record valid phase and review-gate transitions |
 | `download_assets.py` | Reproducibly download authorized manifest assets |
-| `check_runtime_independence.py` | Gate undeclared source-origin runtime requests |
+| `check_runtime_independence.py` | Gate source-origin requests and URLs embedded in final builds |
 | `blender_replace_text.py` | Optional playbook for text baked into GLTF/GLB geometry |
 
 Read [SKILL.md](./SKILL.md) for the agent workflow. The [references](./references/) directory defines phases, SITE_SPEC, provenance, runtime independence, recovery, QA, tooling and special cases.
