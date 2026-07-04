@@ -781,6 +781,57 @@ console.log(JSON.stringify(urls.map((url) => { try { parsePublicHttpUrl(url); re
         node_results = json.loads(run(NODE, "--input-type=module", "-e", script, json.dumps(urls)).stdout)
         self.assertEqual(python_results, node_results)
 
+    def test_asset_manifest_generator_creates_safe_review_gated_draft(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            inventory = root / "site-inventory.json"
+            inventory.write_text(json.dumps({
+                "schemaVersion": 1,
+                "resources": [
+                    {"url": "https://cdn.example/media/hero.webp", "resourceType": "image", "mimeType": "image/webp"},
+                    {"url": "https://cdn.example/render.php", "resourceType": "image", "mimeType": "image/png"},
+                    {"url": "https://cdn.example/fonts/site.woff2", "resourceType": "font", "mimeType": "font/woff2"},
+                    {"url": "https://cdn.example/assets/app.js", "resourceType": "script", "mimeType": "text/javascript"},
+                    {"url": "https://api.example/data", "resourceType": "fetch", "mimeType": "application/json"},
+                    {"url": "https://cdn.example/private.png?token=topsecret", "resourceType": "image", "mimeType": "image/png"},
+                ],
+                "routes": [{
+                    "route": "/",
+                    "surface": {
+                        "images": ["https://cdn.example/media/hero.webp"],
+                        "videos": [{"src": "https://cdn.example/media/intro.mp4"}],
+                        "scripts": ["https://cdn.example/assets/app.js"],
+                        "stylesheets": ["https://cdn.example/assets/site.css"],
+                        "performanceResources": [],
+                    },
+                }],
+            }), encoding="utf-8")
+            manifest_path = root / "asset-manifest.json"
+            run(PYTHON, "scripts/generate_asset_manifest.py", str(inventory), "--out", str(manifest_path))
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(manifest["schemaVersion"], 1)
+            self.assertEqual(manifest["reviewStatus"], "pending")
+            self.assertEqual(len(manifest["assets"]), 6)
+            self.assertEqual(len({item["sourceUrl"] for item in manifest["assets"]}), 6)
+            self.assertEqual(len({item["localPath"] for item in manifest["assets"]}), 6)
+            hero = next(item for item in manifest["assets"] if item["sourceUrl"].endswith("hero.webp"))
+            self.assertEqual(len(hero["discoveredFrom"]), 2)
+            dynamic_image = next(item for item in manifest["assets"] if item["sourceUrl"].endswith("render.php"))
+            self.assertTrue(dynamic_image["localPath"].endswith(".png"))
+            self.assertTrue(all(item["localPath"].startswith("public/assets/") for item in manifest["assets"]))
+            self.assertTrue(any(item["reason"] == "unsupported-resource-type" for item in manifest["excluded"]))
+            self.assertTrue(any(item["reason"] == "sensitive-or-invalid-url" for item in manifest["excluded"]))
+            self.assertNotIn("topsecret", json.dumps(manifest))
+
+            blocked_download = run(
+                PYTHON, "scripts/download_assets.py", str(manifest_path), "--output", str(root / "download"), expect=2,
+            )
+            self.assertIn("reviewStatus must be confirmed", blocked_download.stderr)
+            preserved = run(
+                PYTHON, "scripts/generate_asset_manifest.py", str(inventory), "--out", str(manifest_path), expect=2,
+            )
+            self.assertIn("output already exists", preserved.stderr)
+
     def test_asset_downloader_checks_type_checksum_and_is_idempotent(self) -> None:
         with fixture_server() as base, tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

@@ -96,7 +96,15 @@ node <skill-root>/scripts/capture_compare.mjs --config <offline-capture-scenario
 
 Recording strips credential headers/cookies, redacts sensitive query/body fields, and rebases captured service origins to the candidate origin before persisting each HAR. Replay blocks Service Workers, serves HAR matches first, blocks non-local misses, and records fallbacks/blocked requests in `capture-manifest.json`. For a fully offline fixture check, point both replay URLs at the local candidate preview and verify no candidate-side API path appears in `harFixtures.fallbacks`.
 
-For asset-heavy or offline work, read `references/asset-provenance.md`. For final clean/creative builds, read `references/runtime-independence.md`. Recovery configuration instead reads `references/recovery-tiers.md` and `references/gates.md` and adds provenance, hashes, replay strategy, route/deploy continuity, Known Gaps, and maintained CI.
+For asset-heavy or offline work, read `references/asset-provenance.md` and generate a non-overwriting draft from inventory:
+
+```text
+python <skill-root>/scripts/generate_asset_manifest.py <workspace>/.gcw/evidence/site-inventory.json --out <workspace>/.gcw/asset-manifest.json
+```
+
+The generator classifies and deduplicates static resources, proposes deterministic local paths, excludes API noise, and redacts unsafe URLs. It writes `reviewStatus: pending`; confirm reuse rights, purpose, attribution, scope, and paths before changing the status to `confirmed` and running `download_assets.py`. It never downloads or overwrites an existing manifest.
+
+For final clean/creative builds, read `references/runtime-independence.md`. Recovery configuration instead reads `references/recovery-tiers.md` and `references/gates.md` and adds provenance, hashes, replay strategy, route/deploy continuity, Known Gaps, and maintained CI.
 
 ## 5. Verify matched states
 

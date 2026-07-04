@@ -11,6 +11,7 @@ Use automation for deterministic collection and transformation. Use browser insp
 | `image_diff.py` | Compare one same-size screenshot pair | JSON metric and optional diff image |
 | `batch_image_diff.py` | Compare every `*.source.png`/`*.candidate.png` pair | JSON, Markdown and diff images |
 | `route_smoke.py` | Verify public preview routes respond and optionally contain text | JSON route report |
+| `generate_asset_manifest.py` | Draft a review-gated static asset manifest from inventory | `.gcw/asset-manifest.json` |
 | `blender_replace_text.py` | Create replacement 3D text matching reference bounds | GLB/GLTF model |
 | `install_ci.py` | Install a self-contained GitHub visual-regression harness | `.gcw/` tools and workflow |
 | `check_runtime_independence.py` | Reject source-origin URLs in network evidence and final text build artifacts | JSON gate report |

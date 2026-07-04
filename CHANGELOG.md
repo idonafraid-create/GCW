@@ -7,6 +7,7 @@
 - Inventory now records redacted Source Map evidence from response headers, `sourceMappingURL` comments, and conventional `.map` probes.
 - Capture comparison now supports explicit per-scenario SPA HAR recording and offline replay with origin rebasing, credential/body redaction, Service Worker blocking, and network-fallback evidence.
 - Interaction detection now drafts review-gated hover, focus, and common `aria-expanded` evidence with before/after screenshots and browser QA errors.
+- Asset manifest generation now classifies and deduplicates inventory resources into deterministic local paths while gating downloads on explicit human review.
 
 ## 1.2.1 - 2026-07-04
 

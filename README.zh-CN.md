@@ -191,6 +191,7 @@ GCW 会先做一次简短预判，再决定工具、路径和交付范围。
 | `capture_compare.mjs` | 在一致条件下采集状态，并显式启用脱敏 SPA HAR 录制/回放 |
 | `batch_image_diff.py` | 生成指标、Diff 图和 Markdown/JSON 报告 |
 | `route_smoke.py` | 检查预览路由与代表性文字 |
+| `generate_asset_manifest.py` | 从 inventory 生成安全、待人工确认的素材清单初稿 |
 | `install_ci.py` | 安装 GCW 视觉回归 Runner 和工作流 |
 | `advance_workflow.py` | 记录合法的阶段与评审门转换 |
 | `download_assets.py` | 按清单可重复下载已授权资产 |

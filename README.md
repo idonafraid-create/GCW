@@ -191,6 +191,7 @@ Recovery provenance and replay paperwork applies only when ownership/authorizati
 | `capture_compare.mjs` | Capture matched states plus opt-in redacted SPA HAR record/replay |
 | `batch_image_diff.py` | Generate metrics, diff images and Markdown/JSON reports |
 | `route_smoke.py` | Check preview routes and representative text |
+| `generate_asset_manifest.py` | Draft a safe, review-gated asset manifest from inventory |
 | `install_ci.py` | Install the GCW visual-regression runner and workflow |
 | `advance_workflow.py` | Record valid phase and review-gate transitions |
 | `download_assets.py` | Reproducibly download authorized manifest assets |

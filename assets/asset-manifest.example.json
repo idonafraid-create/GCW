@@ -1,5 +1,6 @@
 {
   "schemaVersion": 1,
+  "reviewStatus": "pending",
   "assets": [
     {
       "sourceUrl": "https://example.com/assets/example.webp",

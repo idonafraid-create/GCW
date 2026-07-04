@@ -95,6 +95,8 @@ def main() -> int:
     if args.max_bytes < 1:
         parser.error("--max-bytes must be positive")
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
+    if manifest.get("reviewStatus") not in (None, "confirmed"):
+        parser.error("generated asset manifest reviewStatus must be confirmed before download")
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
     with ThreadPoolExecutor(max_workers=args.concurrency) as executor:
