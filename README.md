@@ -10,7 +10,7 @@ This English README is canonical; update `README.zh-CN.md` in the same change wh
 
 <img src="./assets/banner.webp" alt="GCW — evidence-driven website cloning" width="100%">
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE) · [Changelog](./CHANGELOG.md)
 
 > A screenshot is one frame. A live website is a million.
 >

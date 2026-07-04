@@ -10,7 +10,7 @@
 
 <img src="./assets/banner.webp" alt="GCW — 以证据驱动的网站复刻" width="100%">
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE) · [更新日志](./CHANGELOG.md)
 
 > 截图只有一帧。活的网站有千万帧。
 >
