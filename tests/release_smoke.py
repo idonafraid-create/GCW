@@ -187,6 +187,9 @@ class ReleaseSmokeTests(unittest.TestCase):
         installed_workflow = workflows[1].read_text(encoding="utf-8")
         self.assertIn("cd .gcw\n          npx playwright install", installed_workflow)
         self.assertNotIn("npx --prefix .gcw", installed_workflow)
+        project_ci = workflows[0].read_text(encoding="utf-8")
+        self.assertIn("os: [ubuntu-latest, windows-latest, macos-latest]", project_ci)
+        self.assertIn("runner.os == 'macOS'", project_ci)
 
         environment = json.loads(run(NODE, "scripts/check_environment.mjs").stdout)
         self.assertIn("teardownReady", environment)
