@@ -41,6 +41,8 @@ Read the workspace `AGENTS.md`, then initialize without overwriting evidence:
 python scripts/init_reconstruction.py <workspace> --url <canonical-url> --authorization <owned|licensed|authorized>
 ```
 
+Choose `--teardown-depth minimal` only for a simple non-GPU page: it uses a four-section SITE_SPEC and makes Design DNA recommended rather than blocking. `standard` is the default complete 12-section teardown. Use `deep` for complex rendering or recovery evidence; GPU targets cannot use `minimal`.
+
 Read `references/site-spec.md`. Create `.gcw/SITE_SPEC.md` as a draft; do not finalize it until teardown evidence and required companion-skill results have been integrated. Mark absent capabilities `N/A`. Represent every implementation-critical conclusion in the section 9 subsystem table with fidelity and truth labels; never hide differences behind one percentage.
 
 ## 3. Gather real evidence
@@ -57,7 +59,7 @@ This command also writes `.gcw/evidence/route-map.json` and `.gcw/evidence/netwo
 
 Verify routes, breakpoints, DOM roots, overlays, scroll containers, input states, loading/stable states, GPU/media/workers/iframes, and external data manually.
 
-During every `TEARDOWN_PHASE`, invoke `design-dna` and preserve its complete JSON at `.gcw/evidence/design-dna/design-dna.json`. Summarize implementation-critical findings in `SITE_SPEC.md`; do not copy the sibling schema into a second GCW document. If `design-dna` is unavailable, stop and tell the user what must be installed; do not substitute an unstructured guess.
+During every standard or deep `TEARDOWN_PHASE`, invoke `design-dna` and preserve its complete JSON at `.gcw/evidence/design-dna/design-dna.json`. Minimal teardown recommends the same evidence but does not block finalization when it is absent. Summarize implementation-critical findings in `SITE_SPEC.md`; do not copy the sibling schema into a second GCW document. If required `design-dna` is unavailable, stop and tell the user what must be installed; do not substitute an unstructured guess.
 
 If Canvas, WebGL, WebGPU, or shaders are detected, also invoke `web-shader-extractor`. Preserve its native artifacts under `.gcw/evidence/web-shader-extractor/` and reach `TARGET_LOCKED` plus `REPLAY_READY`; teardown does not require Raw Replay or QA Report. If the required companion is unavailable, stop before finalization. When reconnaissance confirms no qualifying GPU surface, set `gpu-decision.json` to `not-applicable` and reference the supporting inventory evidence.
 

@@ -47,6 +47,8 @@ TEARDOWN_PHASE -> FAITHFUL_CLONE -> REVIEW_GATE -> CREATIVE_REBUILD
 
 所有任务先完成拆解并生成 `.gcw/SITE_SPEC.md`；只研究可在此停止。构建任务先建立约定范围内的忠实基线，再停在 `REVIEW_GATE`，由用户决定继续提高忠实度、接受复刻结果，或批准创意重建。
 
+拆解深度随目标缩放：`minimal` 仅用于明确的简单非 GPU 页面，`standard` 为默认档，`deep` 为复杂渲染与恢复任务保留完整契约。
+
 | 用户结果 | 流程 | 实现路径 |
 |---|---|---|
 | 研究站点 | 在 `TEARDOWN_PHASE` 后停止 | 仅证据 |

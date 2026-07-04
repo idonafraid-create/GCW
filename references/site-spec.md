@@ -7,7 +7,7 @@
 - `.gcw/evidence/evidence-index.json` indexes artifacts and checksums.
 - Companion Skill artifacts remain authoritative for their native schemas. SITE_SPEC summarizes and links them; it never reproduces them wholesale.
 
-Initialize SITE_SPEC as a draft and finalize it only after the complete teardown sequence. Keep all 12 numbered sections and remove every `REQUIRED` placeholder. Write `N/A` only with supporting evidence.
+Initialize SITE_SPEC as a draft and finalize it only after the complete teardown sequence. Standard and deep teardown keep all 12 numbered sections. The opt-in minimal profile is limited to simple non-GPU pages and keeps sections 1, 5, 9, and 12. Remove every `REQUIRED` placeholder and write `N/A` only with supporting evidence.
 
 ## Fixed evidence
 
@@ -26,7 +26,7 @@ Every task preserves:
 └─ web-shader-extractor/gpu-decision.json
 ```
 
-Run `design-dna` during every teardown and keep its complete three-dimension JSON. SITE_SPEC section 4 summarizes only implementation-critical Design System, Design Style, and Visual Effects findings.
+Run `design-dna` during standard and deep teardown and keep its complete three-dimension JSON. It is recommended but non-blocking for minimal teardown. SITE_SPEC section 4 summarizes only implementation-critical Design System, Design Style, and Visual Effects findings.
 
 When a Canvas/WebGL/WebGPU/shader target exists, set `gpu-decision.json.decision` to `required`, run `web-shader-extractor`, and preserve its native `scout-card.json`, `replay-manifest.json`, `run-state.json`, and evidence tree in the same namespace. Before finalizing teardown, `scout-card.json` must be `TARGET_LOCKED`, `replay-manifest.json` must be `REPLAY_READY`, and no blocking replay unknown may remain. Raw Replay and QA belong to the faithful baseline phase.
 

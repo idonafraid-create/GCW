@@ -47,6 +47,8 @@ TEARDOWN_PHASE -> FAITHFUL_CLONE -> REVIEW_GATE -> CREATIVE_REBUILD
 
 Every task starts with teardown and `.gcw/SITE_SPEC.md`. A study can stop there. Build tasks establish a scoped faithful baseline, then stop at `REVIEW_GATE` so the user can request more fidelity, accept the clone, or approve a creative rebuild.
 
+Teardown depth scales with the target: `minimal` is an explicit simple non-GPU page profile, `standard` is the default, and `deep` retains the full contract for complex rendering and recovery work.
+
 | User outcome | Workflow | Implementation path |
 |---|---|---|
 | Study the site | Stop after `TEARDOWN_PHASE` | Evidence only |

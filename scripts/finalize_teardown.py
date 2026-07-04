@@ -11,6 +11,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from PIL import Image, UnidentifiedImageError
+
 
 SITE_SPEC_SECTIONS = tuple(str(index) for index in range(1, 13))
 ALLOWED_FIDELITY = {"Exact", "Approximate", "Unknown", "Excluded"}
@@ -41,7 +43,7 @@ def load_json(path: Path, root: Path) -> dict:
     return value
 
 
-def validate_site_spec(path: Path, root: Path) -> str:
+def validate_site_spec(path: Path, root: Path, teardown_depth: str) -> str:
     ensure_safe_path(root, path)
     if not path.is_file():
         raise ValueError(f"missing required artifact: {path}")
@@ -51,8 +53,9 @@ def validate_site_spec(path: Path, root: Path) -> str:
     if "<!-- REQUIRED" in text:
         raise ValueError("SITE_SPEC.md still contains REQUIRED placeholders")
     matches = list(re.finditer(r"^## (\d+)\. .+$", text, re.MULTILINE))
-    if tuple(match.group(1) for match in matches) != SITE_SPEC_SECTIONS:
-        raise ValueError("SITE_SPEC.md must contain the 12 required numbered sections in order")
+    expected = ("1", "5", "9", "12") if teardown_depth == "minimal" else SITE_SPEC_SECTIONS
+    if tuple(match.group(1) for match in matches) != expected:
+        raise ValueError(f"SITE_SPEC.md must contain the {len(expected)} required numbered sections in order for {teardown_depth} teardown")
     for index, match in enumerate(matches):
         end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
         body = text[match.end():end].strip()
@@ -63,7 +66,7 @@ def validate_site_spec(path: Path, root: Path) -> str:
 
 
 def validate_subsystem_table(text: str) -> None:
-    match = re.search(r"^## 9\. [^\n]+\n(.*?)(?=^## 10\.)", text, re.MULTILINE | re.DOTALL)
+    match = re.search(r"^## 9\. [^\n]+\n(.*?)(?=^## \d+\.|\Z)", text, re.MULTILINE | re.DOTALL)
     if not match:
         raise ValueError("SITE_SPEC.md section 9 subsystem table is missing")
     rows = []
@@ -144,6 +147,15 @@ def evidence_files(root: Path, path: Path, suffixes: set[str] | None = None) -> 
     return sorted(files)
 
 
+def verify_images(paths: list[Path]) -> None:
+    for path in paths:
+        try:
+            with Image.open(path) as image:
+                image.verify()
+        except (OSError, UnidentifiedImageError) as error:
+            raise ValueError(f"invalid screenshot image: {path}: {error}") from error
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("workspace", type=Path)
@@ -152,8 +164,13 @@ def main() -> int:
 
     manifest_path = root / "teardown-manifest.json"
     manifest = load_json(manifest_path, root)
+    state_path = root / "run-state.json"
+    state = load_json(state_path, root)
+    teardown_depth = state.get("teardownDepth", "standard")
+    if teardown_depth not in {"minimal", "standard", "deep"}:
+        raise ValueError(f"invalid teardownDepth: {teardown_depth}")
     site_spec_path = root / "SITE_SPEC.md"
-    site_spec = validate_site_spec(site_spec_path, root)
+    site_spec = validate_site_spec(site_spec_path, root, teardown_depth)
 
     evidence_root = root / "evidence"
     fixed_json = {
@@ -168,13 +185,16 @@ def main() -> int:
     validate_interaction_states(root, fixed_json["interaction-states"])
     desktop_screenshots = evidence_files(root, evidence_root / "screenshots" / "desktop", {".png", ".jpg", ".jpeg", ".webp"})
     mobile_screenshots = evidence_files(root, evidence_root / "screenshots" / "mobile", {".png", ".jpg", ".jpeg", ".webp"})
+    verify_images(desktop_screenshots + mobile_screenshots)
     network_evidence = evidence_files(root, evidence_root / "network")
 
     design_path = root / "evidence" / "design-dna" / "design-dna.json"
-    design = load_json(design_path, root)
     required_design_keys = {"meta", "design_system", "design_style", "visual_effects"}
-    if not required_design_keys.issubset(design) or any(not design[key] for key in required_design_keys):
-        raise ValueError("design-dna.json must contain non-empty meta, design_system, design_style, and visual_effects")
+    design = load_json(design_path, root) if design_path.is_file() else None
+    if teardown_depth != "minimal" and design is None:
+        raise ValueError(f"missing required artifact: {design_path}")
+    if design is not None and (not required_design_keys.issubset(design) or any(not design[key] for key in required_design_keys)):
+        raise ValueError("design-dna.json contract three-dimension-v1 requires non-empty meta, design_system, design_style, and visual_effects")
 
     shader_root = root / "evidence" / "web-shader-extractor"
     decision_path = shader_root / "gpu-decision.json"
@@ -185,28 +205,35 @@ def main() -> int:
         *(artifact_entry(root, path, f"desktop-screenshot-{index}", "gcw") for index, path in enumerate(desktop_screenshots, 1)),
         *(artifact_entry(root, path, f"mobile-screenshot-{index}", "gcw") for index, path in enumerate(mobile_screenshots, 1)),
         *(artifact_entry(root, path, f"network-evidence-{index}", "gcw") for index, path in enumerate(network_evidence, 1)),
-        artifact_entry(root, design_path, "design-dna", "design-dna"),
         artifact_entry(root, decision_path, "gpu-decision", "gcw"),
     ]
+    if design is not None:
+        design_entry = artifact_entry(root, design_path, "design-dna", "design-dna")
+        design_entry["schemaContract"] = "three-dimension-v1"
+        indexed.append(design_entry)
     if gpu_decision == "not-applicable":
         if not decision.get("checkedSurfaces") or not decision.get("detectionEvidence"):
             raise ValueError("GPU N/A requires checkedSurfaces and detectionEvidence")
         gpu_status = "not-applicable"
     elif gpu_decision == "required":
+        if teardown_depth == "minimal":
+            raise ValueError("minimal teardown requires evidence-backed GPU not-applicable; use standard or deep for GPU targets")
         scout_path = shader_root / "scout-card.json"
         replay_path = shader_root / "replay-manifest.json"
         scout = load_json(scout_path, root)
         replay = load_json(replay_path, root)
+        if scout.get("schemaVersion") != 3 or replay.get("schemaVersion") != 3:
+            raise ValueError("web-shader-extractor schema drift: expected scout-card and replay-manifest schemaVersion 3")
         if scout.get("lockStatus") != "locked" or scout.get("gateDecision", {}).get("targetLocked") is not True:
             raise ValueError("GPU teardown requires a TARGET_LOCKED scout-card.json")
         if replay.get("gateDecision", {}).get("replayReady") is not True:
             raise ValueError("GPU teardown requires a REPLAY_READY replay-manifest.json")
         if replay.get("unknowns", {}).get("blocking") or replay.get("gateDecision", {}).get("blockers"):
             raise ValueError("GPU teardown cannot finalize with blocking replay unknowns")
-        indexed.extend([
-            artifact_entry(root, scout_path, "shader-scout-card", "web-shader-extractor"),
-            artifact_entry(root, replay_path, "shader-replay-manifest", "web-shader-extractor"),
-        ])
+        for path, kind in ((scout_path, "shader-scout-card"), (replay_path, "shader-replay-manifest")):
+            entry = artifact_entry(root, path, kind, "web-shader-extractor")
+            entry["schemaVersion"] = 3
+            indexed.append(entry)
         gpu_status = "replay-ready"
     else:
         raise ValueError("gpu-decision.json decision must be required or not-applicable")
@@ -221,8 +248,6 @@ def main() -> int:
     evidence_index = load_json(index_path, root)
     if not isinstance(evidence_index.get("entries"), list):
         raise ValueError("evidence-index.json entries must be an array")
-    state_path = root / "run-state.json"
-    state = load_json(state_path, root)
 
     finalized_at = datetime.now(timezone.utc).isoformat()
     finalized_site_spec = site_spec.replace("Status: DRAFT", "Status: FINAL", 1)
@@ -243,7 +268,7 @@ def main() -> int:
 
     manifest.update({"status": "passed", "finalizedAt": finalized_at})
     site_spec_manifest.update({"status": "final"})
-    design_manifest.update({"status": "passed"})
+    design_manifest.update({"required": teardown_depth != "minimal", "status": "passed" if design is not None else "recommended-not-provided"})
     gpu_manifest.update({"decision": gpu_decision, "status": gpu_status})
 
     state["analysisGates"] = {"designDna": "complete", "gpuForensics": gpu_status, "teardown": "passed"}

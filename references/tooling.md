@@ -25,6 +25,8 @@ Use automation for deterministic collection and transformation. Use browser insp
 
 Run `npm install`, `npm run install:browser` and `npm run check` from the GCW repository to verify the shared runtime before a recovery. If Blender is installed outside `PATH`, set `GCW_BLENDER_EXECUTABLE` to its full executable path.
 
+The environment report separates base runtime `passed` from companion `teardownReady` and `teardownRequirements`. Standard and deep work requires teardown readiness; a green base-runtime result does not override it.
+
 ## Determinism model
 
 Every capture scenario must define `readySelector` or `readyFunction`. Replace the example `document.readyState === 'complete'` condition with an application-specific observable condition for animated sites, such as the final shell being visible or a loading canvas being removed.

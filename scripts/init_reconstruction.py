@@ -39,6 +39,7 @@ def main() -> int:
     parser.add_argument("--source-availability", choices=("unknown", "available", "unavailable", "damaged"), default="unknown")
     parser.add_argument("--baseline-scope", default="to-confirm")
     parser.add_argument("--implementation-path", choices=("", "SOURCE_ADAPT", "CLEAN_REBUILD", "PRODUCTION_RECOVERY"), default="")
+    parser.add_argument("--teardown-depth", choices=("minimal", "standard", "deep"), default="standard")
     args = parser.parse_args()
 
     try:
@@ -78,9 +79,10 @@ def main() -> int:
         "sourceAvailability": args.source_availability,
         "baselineScope": args.baseline_scope,
         "implementationPath": args.implementation_path,
+        "teardownDepth": args.teardown_depth,
         "approximateOrExcludedScope": [],
         "conditionalGates": {
-            "designDna": True,
+            "designDna": args.teardown_depth != "minimal",
             "gpuForensics": "required-when-canvas-webgl-webgpu-or-shaders-detected",
             "runtimeIndependence": args.implementation_path == "CLEAN_REBUILD" or args.outcome == "creative-rebuild",
             "assetProvenance": "enable-when-asset-heavy-offline-or-maintained",
@@ -133,7 +135,7 @@ def main() -> int:
     created = []
     files = {
         root / "run-state.json": json.dumps(state, indent=2) + "\n",
-        root / "SITE_SPEC.md": (Path(__file__).resolve().parent.parent / "assets" / "site-spec-template.md").read_text(encoding="utf-8"),
+        root / "SITE_SPEC.md": (Path(__file__).resolve().parent.parent / "assets" / ("site-spec-minimal-template.md" if args.teardown_depth == "minimal" else "site-spec-template.md")).read_text(encoding="utf-8"),
         root / "teardown-manifest.json": (Path(__file__).resolve().parent.parent / "assets" / "teardown-manifest.template.json").read_text(encoding="utf-8"),
         evidence / "evidence-index.json": (Path(__file__).resolve().parent.parent / "assets" / "evidence-index.template.json").read_text(encoding="utf-8"),
         evidence / "web-shader-extractor" / "gpu-decision.json": (Path(__file__).resolve().parent.parent / "assets" / "gpu-decision.template.json").read_text(encoding="utf-8"),

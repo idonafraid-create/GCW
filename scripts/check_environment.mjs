@@ -77,14 +77,17 @@ const blender = findBlender();
 
 const report = {
   passed: nodeMajor >= 20 && python.ok && pillow.ok && playwright.ok,
+  teardownReady: skillRoots.some((item) => item.complete),
   required: {
     node: { ok: nodeMajor >= 20, version: process.versions.node },
     python,
     pillow,
     playwright,
   },
+  teardownRequirements: {
+    companionSkills: { ok: skillRoots.some((item) => item.complete), roots: skillRoots, requiredFor: "standard and deep teardown" },
+  },
   optional: {
-    companionSkills: { ok: skillRoots.some((item) => item.complete), roots: skillRoots, requiredFor: "advanced GPU forensics and structured design extraction" },
     blender: { ok: Boolean(blender), executable: blender, requiredFor: "GLTF or GLB text replacement only" },
   },
 };

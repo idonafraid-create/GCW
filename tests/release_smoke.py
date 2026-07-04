@@ -121,8 +121,8 @@ def complete_teardown_artifacts(workspace: Path, gpu_required: bool = False) -> 
         }],
     }
     (root / "evidence" / "interaction-states.json").write_text(json.dumps(interaction_states), encoding="utf-8")
-    (root / "evidence" / "screenshots" / "desktop" / "home.png").write_bytes(b"fixture-desktop")
-    (root / "evidence" / "screenshots" / "mobile" / "home.png").write_bytes(b"fixture-mobile")
+    Image.new("RGB", (8, 8), "#ffffff").save(root / "evidence" / "screenshots" / "desktop" / "home.png")
+    Image.new("RGB", (8, 8), "#ffffff").save(root / "evidence" / "screenshots" / "mobile" / "home.png")
     (root / "evidence" / "network" / "requests.json").write_text(json.dumps({"requests": []}), encoding="utf-8")
     shader = root / "evidence" / "web-shader-extractor"
     if gpu_required:
@@ -170,12 +170,12 @@ class ReleaseSmokeTests(unittest.TestCase):
         self.assertIn("GCW 就是 Gao Copy Website。对，名字就这么直白。", (ROOT / "README.zh-CN.md").read_text(encoding="utf-8"))
         self.assertIn("SITE_SPEC.md", skill)
         self.assertIn("Stop at REVIEW_GATE", skill)
-        self.assertIn("During every `TEARDOWN_PHASE`, invoke `design-dna`", skill)
+        self.assertIn("During every standard or deep `TEARDOWN_PHASE`, invoke `design-dna`", skill)
         self.assertIn("also invoke `web-shader-extractor`", skill)
         self.assertIn("Only after these decisions and calls are complete", skill)
-        self.assertIn("If `design-dna` is unavailable, stop", skill)
+        self.assertIn("If required `design-dna` is unavailable, stop", skill)
         for asset in (
-            "site-spec-template.md", "creative-brief-template.md", "asset-manifest.example.json",
+            "site-spec-template.md", "site-spec-minimal-template.md", "creative-brief-template.md", "asset-manifest.example.json",
             "teardown-manifest.template.json", "evidence-index.template.json", "gpu-decision.template.json",
         ):
             self.assertTrue((ROOT / "assets" / asset).is_file(), asset)
@@ -184,6 +184,11 @@ class ReleaseSmokeTests(unittest.TestCase):
         for workflow in workflows:
             content = workflow.read_text(encoding="utf-8")
             self.assertIsNone(re.search(r"uses:\s+[^\s#]+@v\d+", content), workflow)
+
+        environment = json.loads(run(NODE, "scripts/check_environment.mjs").stdout)
+        self.assertIn("teardownReady", environment)
+        self.assertIn("teardownRequirements", environment)
+        self.assertNotIn("companionSkills", environment["optional"])
 
     def test_init_is_non_destructive_and_rejects_secret_urls(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -195,6 +200,7 @@ class ReleaseSmokeTests(unittest.TestCase):
             self.assertEqual(state["permissionBoundary"], "unconfirmed")
             self.assertEqual(state["currentPhase"], "TEARDOWN_PHASE")
             self.assertEqual(state["outcome"], "teardown")
+            self.assertEqual(state["teardownDepth"], "standard")
             self.assertEqual(state["reviewDecisions"], [])
             self.assertEqual(state["conditionalGates"]["assetProvenance"], "enable-when-asset-heavy-offline-or-maintained")
             self.assertTrue(state["conditionalGates"]["designDna"])
@@ -401,6 +407,8 @@ Approved screenshots.
             self.assertEqual(manifest["status"], "passed")
             evidence_index = json.loads((Path(temp) / ".gcw" / "evidence" / "evidence-index.json").read_text(encoding="utf-8"))
             self.assertTrue({"design-dna", "gpu-decision", "site-spec", "site-inventory", "route-map", "interaction-states"}.issubset({entry["kind"] for entry in evidence_index["entries"]}))
+            design_entry = next(entry for entry in evidence_index["entries"] if entry["kind"] == "design-dna")
+            self.assertEqual(design_entry["schemaContract"], "three-dimension-v1")
 
     def test_gpu_teardown_requires_target_lock_and_replay_ready(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -414,10 +422,19 @@ Approved screenshots.
             blocked = run(PYTHON, "scripts/finalize_teardown.py", temp, expect=1)
             self.assertIn("TARGET_LOCKED", blocked.stderr)
             scout["lockStatus"] = "locked"
+            scout["schemaVersion"] = 4
+            scout_path.write_text(json.dumps(scout), encoding="utf-8")
+            drifted = run(PYTHON, "scripts/finalize_teardown.py", temp, expect=1)
+            self.assertIn("schema drift", drifted.stderr)
+            scout["schemaVersion"] = 3
             scout_path.write_text(json.dumps(scout), encoding="utf-8")
             run(PYTHON, "scripts/finalize_teardown.py", temp)
             manifest = json.loads((workspace / ".gcw" / "teardown-manifest.json").read_text(encoding="utf-8"))
             self.assertEqual(manifest["gpuAnalysis"]["status"], "replay-ready")
+            index = json.loads((workspace / ".gcw" / "evidence" / "evidence-index.json").read_text(encoding="utf-8"))
+            shader_entries = [entry for entry in index["entries"] if entry["sourceSkill"] == "web-shader-extractor"]
+            self.assertTrue(shader_entries)
+            self.assertTrue(all(entry["schemaVersion"] == 3 for entry in shader_entries))
 
     def test_teardown_rejects_invalid_truth_fidelity_rows(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -452,6 +469,36 @@ Approved screenshots.
             spec = (workspace / ".gcw" / "SITE_SPEC.md").read_text(encoding="utf-8")
             self.assertIn("Status: DRAFT", spec)
             self.assertNotIn("Status: FINAL", spec)
+
+    def test_teardown_rejects_invalid_screenshot_bytes(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Path(temp)
+            run(PYTHON, "scripts/init_reconstruction.py", temp, "--url", "https://example.com/")
+            complete_teardown_artifacts(workspace)
+            (workspace / ".gcw" / "evidence" / "screenshots" / "desktop" / "home.png").write_bytes(b"not-an-image")
+            blocked = run(PYTHON, "scripts/finalize_teardown.py", temp, expect=1)
+            self.assertIn("invalid screenshot image", blocked.stderr)
+
+    def test_minimal_teardown_uses_reduced_spec_and_optional_design_dna(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Path(temp)
+            run(
+                PYTHON, "scripts/init_reconstruction.py", temp,
+                "--url", "https://example.com/", "--teardown-depth", "minimal",
+            )
+            complete_teardown_artifacts(workspace)
+            root = workspace / ".gcw"
+            spec = root / "SITE_SPEC.md"
+            text = re.sub(r"<!-- REQUIRED.*?-->", "Completed from persisted evidence.", spec.read_text(encoding="utf-8"))
+            text = text.replace(
+                "| Completed from persisted evidence. | Exact / Approximate / Unknown / Excluded | SOURCE / PARTIAL / GUESS |  | yes / no |  |",
+                "| Layout | Exact | SOURCE | evidence/site-inventory.json | no | Matches the authorized page |",
+            )
+            spec.write_text(text, encoding="utf-8")
+            (root / "evidence" / "design-dna" / "design-dna.json").unlink()
+            run(PYTHON, "scripts/finalize_teardown.py", temp)
+            manifest = json.loads((root / "teardown-manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["designDna"]["status"], "recommended-not-provided")
 
     def test_runtime_independence_blocks_source_origin(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
