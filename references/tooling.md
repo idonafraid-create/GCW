@@ -46,3 +46,7 @@ This greatly reduces dynamic noise but cannot guarantee a zero diff for GPU driv
 - Do not submit forms, guess passcodes or bypass access controls.
 - Inventory scripts collect URLs and metadata; they do not archive private responses.
 - Review manifests for query strings or secrets before committing.
+- Treat capture configuration as executable code because `readyFunction` runs in the page; review third-party configs before use.
+- Inventory and route checks do not consult `robots.txt` because GCW requires ownership or explicit authorization before collection.
+
+Set `GCW_SKILLS_ROOT` when companion skills are not installed beside the GCW checkout or under a supported user skill directory.

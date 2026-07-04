@@ -1,5 +1,7 @@
 # GCW
 
+英文版 `README.md` 是 canonical 文档；用户可见行为变化时必须在同一次修改中同步本文件。
+
 <p align="center">
   <a href="./README.md">English</a> · <strong>简体中文</strong>
 </p>

@@ -9,7 +9,7 @@ Visible words in a 3D scene may be mesh geometry rather than JavaScript, HTML or
 When replacement is required, use Blender to generate a repeatable geometry baseline against the reference bounds:
 
 ```text
-blender --background --python scripts/blender_replace_text.py -- \
+blender --background --python <skill-root>/scripts/blender_replace_text.py -- \
   --reference <old-model.gltf> --text "NEW WORD" --output <new-model.glb> \
   --font <font-file.ttf>
 ```

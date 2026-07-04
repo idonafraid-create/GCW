@@ -59,7 +59,7 @@ async function installNavigationGuard(context, allowedOrigin) {
 
 async function initializePage(page, url, scenario) {
   await page.emulateMedia({
-    colorScheme: scenario.colorScheme || "dark",
+    colorScheme: scenario.colorScheme || "light",
     reducedMotion: scenario.reducedMotion || "no-preference",
   });
   if ((scenario.clockMode || "controlled") === "controlled") {

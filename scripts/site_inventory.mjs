@@ -15,7 +15,7 @@ function sanitizeSurface(surface) {
 }
 
 function parseArgs(argv) {
-  const args = { maxRoutes: 25, timeout: 20000, settleMs: 700, executablePath: "" };
+  const args = { maxRoutes: 25, timeout: 20000, settleMs: 700, executablePath: "", viewport: { width: 1280, height: 720 } };
   for (let i = 0; i < argv.length; i += 1) {
     const key = argv[i];
     const value = argv[i + 1];
@@ -25,6 +25,11 @@ function parseArgs(argv) {
     else if (key === "--timeout") args.timeout = Number(value), i += 1;
     else if (key === "--settle-ms") args.settleMs = Number(value), i += 1;
     else if (key === "--executable-path") args.executablePath = value, i += 1;
+    else if (key === "--viewport") {
+      const match = /^(\d+)x(\d+)$/.exec(value || "");
+      if (!match) throw new Error("--viewport must use WIDTHxHEIGHT, for example 390x844");
+      args.viewport = { width: Number(match[1]), height: Number(match[2]) }, i += 1;
+    }
     else throw new Error(`Unknown argument: ${key}`);
   }
   if (!args.url || !args.out) {
@@ -33,6 +38,7 @@ function parseArgs(argv) {
   if (!Number.isInteger(args.maxRoutes) || args.maxRoutes <= 0) throw new Error("--max-routes must be a positive integer");
   if (!Number.isFinite(args.timeout) || args.timeout <= 0) throw new Error("--timeout must be a positive number");
   if (!Number.isFinite(args.settleMs) || args.settleMs < 0) throw new Error("--settle-ms must be zero or greater");
+  if (args.viewport.width < 1 || args.viewport.height < 1) throw new Error("--viewport dimensions must be positive");
   return args;
 }
 
@@ -136,7 +142,7 @@ async function main() {
   const executablePath = args.executablePath || process.env.GCW_BROWSER_EXECUTABLE || undefined;
   const browser = await chromium.launch({ headless: true, executablePath });
   try {
-    const context = await browser.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
+    const context = await browser.newContext({ viewport: args.viewport, deviceScaleFactor: 1 });
     await installCanvasProbe(context);
     await installNavigationGuard(context, canonical.origin);
     const page = await context.newPage();
@@ -192,7 +198,7 @@ async function main() {
       generatedAt: new Date().toISOString(),
       canonicalUrl: sanitizeUrl(canonical.href),
       origin: canonical.origin,
-      limits: { maxRoutes: args.maxRoutes, timeout: args.timeout, settleMs: args.settleMs },
+      limits: { maxRoutes: args.maxRoutes, timeout: args.timeout, settleMs: args.settleMs, viewport: args.viewport },
       routes,
       resources: [...resources.values()].sort((a, b) => a.url.localeCompare(b.url)),
     };

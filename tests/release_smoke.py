@@ -217,6 +217,9 @@ class ReleaseSmokeTests(unittest.TestCase):
             self.assertTrue((gcw / "evidence" / "web-shader-extractor" / "gpu-decision.json").is_file())
             for name in ("site-inventory.json", "route-map.json", "interaction-states.json"):
                 self.assertTrue((gcw / "evidence" / name).is_file())
+            scenarios = json.loads((gcw / "config" / "capture-scenarios.json").read_text(encoding="utf-8"))
+            self.assertEqual(len(scenarios["scenarios"]), 2)
+            self.assertTrue(all(item["colorScheme"] == "light" for item in scenarios["scenarios"]))
             state_path.write_text('{"preserved": true}\n', encoding="utf-8")
             run(PYTHON, "scripts/init_reconstruction.py", temp, "--url", "https://example.com/")
             self.assertEqual(json.loads(state_path.read_text(encoding="utf-8")), {"preserved": True})
@@ -284,8 +287,9 @@ class ReleaseSmokeTests(unittest.TestCase):
     def test_inventory_crawls_routes_and_redacts_resource_secrets(self) -> None:
         with fixture_server() as base, tempfile.TemporaryDirectory() as temp:
             out = Path(temp) / "inventory.json"
-            run(NODE, "scripts/site_inventory.mjs", "--url", base, "--out", str(out), "--settle-ms", "0")
+            run(NODE, "scripts/site_inventory.mjs", "--url", base, "--out", str(out), "--settle-ms", "0", "--viewport", "390x844")
             report = json.loads(out.read_text(encoding="utf-8"))
+            self.assertEqual(report["limits"]["viewport"], {"width": 390, "height": 844})
             self.assertEqual({item["route"] for item in report["routes"]}, {"/", "/child"})
             serialized = json.dumps(report)
             self.assertNotIn("topsecret", serialized)
@@ -528,6 +532,33 @@ Approved screenshots.
                 PYTHON, "scripts/check_runtime_independence.py", str(evidence),
                 "--source-url", "https://source.example", "--build-dir", str(build),
             )
+
+    def test_python_and_node_url_safety_agree(self) -> None:
+        urls = [
+            "https://example.com/path",
+            "https://user:pass@example.com/",
+            "https://example.com/?api_key=secret",
+            "ftp://example.com/file",
+            "not-a-url",
+        ]
+        sys.path.insert(0, str(ROOT / "scripts"))
+        try:
+            from url_safety import validate_public_url
+            python_results = []
+            for url in urls:
+                try:
+                    validate_public_url(url, "URL")
+                    python_results.append(True)
+                except ValueError:
+                    python_results.append(False)
+        finally:
+            sys.path.pop(0)
+        script = """import {parsePublicHttpUrl} from './scripts/url_safety.mjs';
+const urls = JSON.parse(process.argv[1]);
+console.log(JSON.stringify(urls.map((url) => { try { parsePublicHttpUrl(url); return true; } catch { return false; } })));
+"""
+        node_results = json.loads(run(NODE, "--input-type=module", "-e", script, json.dumps(urls)).stdout)
+        self.assertEqual(python_results, node_results)
 
     def test_asset_downloader_checks_type_checksum_and_is_idempotent(self) -> None:
         with fixture_server() as base, tempfile.TemporaryDirectory() as temp:

@@ -109,33 +109,16 @@ def main() -> int:
         "evidence": [],
     }
 
-    scenarios = {
-        "sourceUrl": args.url.rstrip("/"),
-        "candidateUrl": "http://127.0.0.1:4173",
-        "browserExecutable": "",
-        "seed": 20260630,
-        "scenarios": [
-            {
-                "id": "desktop-top",
-                "route": routes[0],
-                "viewport": {"width": 1280, "height": 720},
-                "deviceScaleFactor": 1,
-                "clockMode": "controlled",
-                "clockStepMs": 16,
-                "readyTimeoutMs": 30000,
-                "readyFunction": "document.readyState === 'complete'",
-                "readyDelayMs": 2000,
-                "phaseMs": 0,
-                "scroll": {"x": 0, "y": 0},
-                "pointer": {"x": 640, "y": 360},
-            }
-        ],
-    }
+    skill_root = Path(__file__).resolve().parent.parent
+    scenarios = json.loads((skill_root / "assets" / "capture-scenarios.example.json").read_text(encoding="utf-8"))
+    scenarios["sourceUrl"] = args.url.rstrip("/")
+    for scenario in scenarios["scenarios"]:
+        scenario["route"] = routes[0]
 
     created = []
     files = {
         root / "run-state.json": json.dumps(state, indent=2) + "\n",
-        root / "SITE_SPEC.md": (Path(__file__).resolve().parent.parent / "assets" / ("site-spec-minimal-template.md" if args.teardown_depth == "minimal" else "site-spec-template.md")).read_text(encoding="utf-8"),
+        root / "SITE_SPEC.md": (skill_root / "assets" / ("site-spec-minimal-template.md" if args.teardown_depth == "minimal" else "site-spec-template.md")).read_text(encoding="utf-8"),
         root / "teardown-manifest.json": (Path(__file__).resolve().parent.parent / "assets" / "teardown-manifest.template.json").read_text(encoding="utf-8"),
         evidence / "evidence-index.json": (Path(__file__).resolve().parent.parent / "assets" / "evidence-index.template.json").read_text(encoding="utf-8"),
         evidence / "web-shader-extractor" / "gpu-decision.json": (Path(__file__).resolve().parent.parent / "assets" / "gpu-decision.template.json").read_text(encoding="utf-8"),

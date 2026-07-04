@@ -1,5 +1,7 @@
 # GCW
 
+This English README is canonical; update `README.zh-CN.md` in the same change whenever user-facing behavior changes.
+
 <p align="center">
   <strong>English</strong> · <a href="./README.zh-CN.md">简体中文</a>
 </p>

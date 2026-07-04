@@ -35,10 +35,10 @@ Choose the faithful implementation path from evidence: `SOURCE_ADAPT`, `CLEAN_RE
 
 ## 2. Establish the specification
 
-Read the workspace `AGENTS.md`, then initialize without overwriting evidence:
+Read workspace agent instructions (`AGENTS.md` or `CLAUDE.md`), if present. Let `<skill-root>` mean the directory containing this SKILL.md, then initialize without overwriting evidence:
 
 ```text
-python scripts/init_reconstruction.py <workspace> --url <canonical-url> --authorization <owned|licensed|authorized>
+python <skill-root>/scripts/init_reconstruction.py <workspace> --url <canonical-url> --authorization <owned|licensed|authorized>
 ```
 
 Choose `--teardown-depth minimal` only for a simple non-GPU page: it uses a four-section SITE_SPEC and makes Design DNA recommended rather than blocking. `standard` is the default complete 12-section teardown. Use `deep` for complex rendering or recovery evidence; GPU targets cannot use `minimal`.
@@ -52,7 +52,7 @@ Search official repositories, source maps, framework metadata, and public deploy
 Run inventory where Playwright is available:
 
 ```text
-node scripts/site_inventory.mjs --url <canonical-url> --out <workspace>/.gcw/evidence/site-inventory.json
+node <skill-root>/scripts/site_inventory.mjs --url <canonical-url> --out <workspace>/.gcw/evidence/site-inventory.json
 ```
 
 This command also writes `.gcw/evidence/route-map.json` and `.gcw/evidence/network/requests.json`. Fill `.gcw/evidence/interaction-states.json` with at least one observed state using the schema in `references/site-spec.md`.
@@ -66,7 +66,7 @@ If Canvas, WebGL, WebGPU, or shaders are detected, also invoke `web-shader-extra
 Only after these decisions and calls are complete, integrate their results into `SITE_SPEC.md`, remove every `REQUIRED` placeholder, then run:
 
 ```text
-python scripts/finalize_teardown.py <workspace>
+python <skill-root>/scripts/finalize_teardown.py <workspace>
 ```
 
 The finalizer validates companion artifacts, updates `teardown-manifest.json` and `evidence-index.json`, and marks SITE_SPEC final. Apply the same contract when teardown is the final outcome; study-only work changes the stopping point, not teardown depth.
@@ -76,7 +76,7 @@ The finalizer validates companion artifacts, updates `teardown-manifest.json` an
 Restore only agreed pages, components, and states. Preserve deep links and responsive behavior. Replace unavailable services with explicit fixtures. Verify production build and preview, then run route checks:
 
 ```text
-python scripts/route_smoke.py --base-url <preview-url> --route / --route /example
+python <skill-root>/scripts/route_smoke.py --base-url <preview-url> --route / --route /example
 ```
 
 For asset-heavy or offline work, read `references/asset-provenance.md`. For final clean/creative builds, read `references/runtime-independence.md`. Recovery configuration instead reads `references/recovery-tiers.md` and `references/gates.md` and adds provenance, hashes, replay strategy, route/deploy continuity, Known Gaps, and maintained CI.
@@ -86,8 +86,8 @@ For asset-heavy or offline work, read `references/asset-provenance.md`. For fina
 Read `references/qa-scenarios.md` and `references/tooling.md`:
 
 ```text
-node scripts/capture_compare.mjs --config <capture-scenarios.json> --output <results-dir>
-python scripts/batch_image_diff.py <results-dir> --diff-dir <results-dir>/diff
+node <skill-root>/scripts/capture_compare.mjs --config <capture-scenarios.json> --output <results-dir>
+python <skill-root>/scripts/batch_image_diff.py <results-dir> --diff-dir <results-dir>/diff
 ```
 
 Match viewport, DPR, route, pointer, scroll, seed, readiness, and time phase. Inspect screenshots and Diff images. Produce `CLONE_REPORT.md` with subsystem fidelity and Known Gaps. Leave a local `faithful-baseline` checkpoint only when the user permits commits.
