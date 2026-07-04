@@ -8,4 +8,6 @@ python <skill-root>/scripts/check_runtime_independence.py <network-evidence.json
 
 Third-party origins are not blocked by this gate. The source origin cannot be allowlisted; if the deliverable intentionally depends on it, the runtime-independence gate has not passed. Default HTTP and HTTPS ports are normalized before origins are compared.
 
+Sanitized SPA HAR fixtures can be checked with the same command by passing the `.har` file as network evidence. A runtime-independent fixture must rebase recorded service origins to the candidate origin and pass the gate together with the final build. During browser replay, also require no candidate-side API path in `capture-manifest.json` under `harFixtures.fallbacks` and no candidate-side blocked request; otherwise the HAR is incomplete or the candidate still targets an external runtime.
+
 Teardown does not require this gate. Recovery work may temporarily use the original production backend; document the recovery stage and apply the gate incrementally rather than pretending independence already exists.

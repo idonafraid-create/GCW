@@ -6,7 +6,7 @@ Use automation for deterministic collection and transformation. Use browser insp
 |---|---|---|
 | `init_reconstruction.py` | Create non-destructive `.gcw/` evidence scaffolding | run state, known gaps, QA matrix, scenario config |
 | `site_inventory.mjs` | Crawl public same-origin routes and record network, surface, and source-map resources | `site-inventory.json`, `route-map.json`, `network/requests.json`, `source-maps.json` |
-| `capture_compare.mjs` | Capture source/candidate pairs under matched conditions | PNG pairs + capture manifest |
+| `capture_compare.mjs` | Capture source/candidate pairs; explicitly record or replay redacted per-scenario SPA HAR fixtures | PNG pairs + capture manifest + optional HAR files |
 | `image_diff.py` | Compare one same-size screenshot pair | JSON metric and optional diff image |
 | `batch_image_diff.py` | Compare every `*.source.png`/`*.candidate.png` pair | JSON, Markdown and diff images |
 | `route_smoke.py` | Verify public preview routes respond and optionally contain text | JSON route report |
@@ -36,6 +36,12 @@ Every capture scenario must define `readySelector` or `readyFunction`. Replace t
 `capture_compare.mjs` launches source and candidate in separate browser processes so heavy WebGL contexts do not starve each other. It injects the same seeded `Math.random`, installs the same virtual clock before navigation, advances both pages in equal 16 ms steps until both satisfy readiness, then advances the same settling and input delay. CSS/compositor animations are disabled during screenshot capture.
 
 The controlled clock uses Playwright's official Clock API: <https://playwright.dev/docs/clock>. If an application cannot initialize while the clock is controlled, set `clockMode` to `realtime` and label the resulting temporal comparison `PARTIAL`.
+
+## SPA HAR fixtures
+
+HAR recording never runs by default. Pass exactly one of `--record-har <dir>` or `--replay-har <dir>` and configure a narrow `harFixture.urlFilter`; use `rebaseOrigins` only for additional API origins that must become candidate-local fixture routes. Recording uses embedded minimal HAR data, removes credential headers and cookies, redacts sensitive URL/query/body fields, rebases configured origins to the candidate origin, and deletes the raw HAR before returning.
+
+Replay disables Service Workers. HAR matches are fulfilled before the network guard; misses may reach only the configured page origin, while non-local misses are aborted. The capture manifest records both fallback and blocked requests. A fixture is offline-ready only when candidate-side API paths do not appear in `harFixtures.fallbacks` and candidate-side `harFixtures.blockedRequests` is empty.
 
 This greatly reduces dynamic noise but cannot guarantee a zero diff for GPU drivers, video, cross-origin iframes, server timestamps, nondeterministic workers or compositor state created before readiness. Label such regions explicitly instead of loosening every threshold.
 

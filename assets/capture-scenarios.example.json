@@ -3,6 +3,10 @@
   "candidateUrl": "http://127.0.0.1:4173",
   "browserExecutable": "",
   "seed": 20260630,
+  "harFixture": {
+    "urlFilter": "**/api/**",
+    "rebaseOrigins": []
+  },
   "scenarios": [
     {
       "id": "desktop-top",

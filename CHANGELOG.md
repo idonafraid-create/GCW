@@ -5,6 +5,7 @@
 ### Added
 
 - Inventory now records redacted Source Map evidence from response headers, `sourceMappingURL` comments, and conventional `.map` probes.
+- Capture comparison now supports explicit per-scenario SPA HAR recording and offline replay with origin rebasing, credential/body redaction, Service Worker blocking, and network-fallback evidence.
 
 ## 1.2.1 - 2026-07-04
 

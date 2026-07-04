@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { assertSameOriginRedirects, joinSameOrigin, parsePublicHttpUrl, sanitizeText, sanitizeUrl } from "./url_safety.mjs";
@@ -12,9 +12,12 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i += 1) {
     if (argv[i] === "--config") args.config = argv[++i];
     else if (argv[i] === "--output") args.output = argv[++i];
+    else if (argv[i] === "--record-har") args.recordHar = argv[++i];
+    else if (argv[i] === "--replay-har") args.replayHar = argv[++i];
     else throw new Error(`Unknown argument: ${argv[i]}`);
   }
-  if (!args.config || !args.output) throw new Error("Usage: capture_compare.mjs --config <json> --output <dir>");
+  if (!args.config || !args.output) throw new Error("Usage: capture_compare.mjs --config <json> --output <dir> [--record-har <dir> | --replay-har <dir>]");
+  if (args.recordHar && args.replayHar) throw new Error("--record-har and --replay-har are mutually exclusive");
   return args;
 }
 
@@ -28,6 +31,116 @@ async function loadPlaywright() {
 
 function safeId(value) {
   return value.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-|-$/g, "") || "scenario";
+}
+
+const SENSITIVE_FIELD = /(?:^|[-_])(?:access[-_]?token|api[-_]?key|auth|authorization|client[-_]?secret|cookie|credential|jwt|key|password|passwd|refresh[-_]?token|secret|session|sig|signature|token)$/i;
+
+function redactText(value) {
+  return String(value)
+    .replace(/\bBearer\s+[^\s,;]+/gi, "Bearer REDACTED")
+    .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, "REDACTED");
+}
+
+function sanitizeString(value, sourceOrigins, candidateOrigin) {
+  const redacted = redactText(value);
+  if (!redacted.startsWith("http://") && !redacted.startsWith("https://")) return redacted;
+  try {
+    return rebaseAndSanitizeUrl(redacted, sourceOrigins, candidateOrigin);
+  } catch {
+    return redacted;
+  }
+}
+
+function redactValue(value, key = "", sourceOrigins = new Set(), candidateOrigin = "") {
+  if (SENSITIVE_FIELD.test(key)) return "REDACTED";
+  if (Array.isArray(value)) return value.map((item) => redactValue(item, "", sourceOrigins, candidateOrigin));
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([childKey, child]) => [childKey, redactValue(child, childKey, sourceOrigins, candidateOrigin)]));
+  }
+  return typeof value === "string" ? sanitizeString(value, sourceOrigins, candidateOrigin) : value;
+}
+
+function redactJsonText(value, sourceOrigins, candidateOrigin) {
+  try {
+    return JSON.stringify(redactValue(JSON.parse(value), "", sourceOrigins, candidateOrigin));
+  } catch {
+    return sanitizeString(value, sourceOrigins, candidateOrigin);
+  }
+}
+
+function sanitizeHeaders(headers = [], sourceOrigins, candidateOrigin) {
+  return headers
+    .filter((header) => !SENSITIVE_FIELD.test(header.name))
+    .map((header) => ({ ...header, value: sanitizeString(header.value, sourceOrigins, candidateOrigin) }));
+}
+
+function rebaseAndSanitizeUrl(value, sourceOrigins, candidateOrigin) {
+  const url = new URL(value);
+  if (sourceOrigins.has(url.origin)) {
+    const rebased = new URL(`${url.pathname}${url.search}${url.hash}`, candidateOrigin);
+    return sanitizeUrl(rebased.href);
+  }
+  return sanitizeUrl(url.href);
+}
+
+function sanitizeContent(content = {}, sourceOrigins, candidateOrigin) {
+  if (typeof content.text !== "string") return content;
+  const encoding = content.encoding;
+  if (encoding === "base64" && !/(?:json|javascript|text|xml|svg|x-www-form-urlencoded)/i.test(content.mimeType || "")) return content;
+  const decoded = encoding === "base64" ? Buffer.from(content.text, "base64").toString("utf8") : content.text;
+  const redacted = redactJsonText(decoded, sourceOrigins, candidateOrigin);
+  return { ...content, text: encoding === "base64" ? Buffer.from(redacted).toString("base64") : redacted };
+}
+
+async function sanitizeRecordedHar(rawPath, finalPath, sourceOrigins, candidateOrigin) {
+  try {
+    const har = JSON.parse(await readFile(rawPath, "utf8"));
+    const entries = har?.log?.entries;
+    if (!Array.isArray(entries)) throw new Error(`Recorded HAR has no log.entries array: ${rawPath}`);
+    for (const entry of entries) {
+      const request = entry.request || {};
+      request.url = rebaseAndSanitizeUrl(request.url, sourceOrigins, candidateOrigin);
+      request.headers = sanitizeHeaders(request.headers, sourceOrigins, candidateOrigin);
+      request.cookies = [];
+      request.queryString = (request.queryString || []).map((item) => ({
+        ...item,
+        value: SENSITIVE_FIELD.test(item.name) ? "REDACTED" : redactText(item.value),
+      }));
+      if (request.postData) {
+        request.postData = { ...request.postData };
+        if (typeof request.postData.text === "string") request.postData.text = redactJsonText(request.postData.text, sourceOrigins, candidateOrigin);
+        request.postData.params = (request.postData.params || []).map((item) => ({
+          ...item,
+          value: SENSITIVE_FIELD.test(item.name) ? "REDACTED" : redactText(item.value),
+        }));
+      }
+      const response = entry.response || {};
+      response.headers = sanitizeHeaders(response.headers, sourceOrigins, candidateOrigin);
+      response.cookies = [];
+      response.redirectURL = response.redirectURL ? rebaseAndSanitizeUrl(response.redirectURL, sourceOrigins, candidateOrigin) : "";
+      response.content = sanitizeContent(response.content, sourceOrigins, candidateOrigin);
+    }
+    await writeFile(finalPath, `${JSON.stringify(har, null, 2)}\n`, "utf8");
+    return entries.length;
+  } finally {
+    await unlink(rawPath).catch((error) => {
+      if (error.code !== "ENOENT") throw error;
+    });
+  }
+}
+
+async function installHarReplay(context, harPath, allowedOrigin, side, fallbacks, blocked) {
+  await context.route("**/*", async (route) => {
+    const url = route.request().url();
+    const sameOrigin = new URL(url).origin === allowedOrigin;
+    fallbacks.push({ side, url: sanitizeUrl(url), allowed: sameOrigin });
+    if (sameOrigin) await route.continue();
+    else {
+      blocked.push({ side, url: sanitizeUrl(url) });
+      await route.abort("blockedbyclient");
+    }
+  });
+  await context.routeFromHAR(harPath, { notFound: "fallback" });
 }
 
 async function installSeededRandom(context, seed) {
@@ -53,7 +166,7 @@ async function installNavigationGuard(context, allowedOrigin) {
         return;
       }
     }
-    await route.continue();
+    await route.fallback();
   });
 }
 
@@ -141,8 +254,19 @@ async function main() {
   if (!sourceUrl || !candidateUrl || !Array.isArray(config.scenarios) || !config.scenarios.length) {
     throw new Error("Config requires sourceUrl, candidateUrl and a non-empty scenarios array");
   }
-  parsePublicHttpUrl(sourceUrl, "sourceUrl");
-  parsePublicHttpUrl(candidateUrl, "candidateUrl");
+  const sourceCanonical = parsePublicHttpUrl(sourceUrl, "sourceUrl");
+  const candidateCanonical = parsePublicHttpUrl(candidateUrl, "candidateUrl");
+  const harMode = args.recordHar ? "record" : args.replayHar ? "replay" : null;
+  if (harMode && (typeof config.harFixture?.urlFilter !== "string" || !config.harFixture.urlFilter.trim())) {
+    throw new Error("HAR recording/replay requires harFixture.urlFilter in the capture config");
+  }
+  if (harMode && config.harFixture.rebaseOrigins !== undefined && !Array.isArray(config.harFixture.rebaseOrigins)) {
+    throw new Error("harFixture.rebaseOrigins must be an array of public origins");
+  }
+  const harRebaseOrigins = new Set(harMode ? [
+    sourceCanonical.origin,
+    ...(config.harFixture.rebaseOrigins || []).map((value) => parsePublicHttpUrl(value, "harFixture.rebaseOrigins entry").origin),
+  ] : []);
   const ids = new Set();
   for (const scenario of config.scenarios) {
     if (!scenario.readySelector && !scenario.readyFunction) {
@@ -162,14 +286,21 @@ async function main() {
   ]);
   const outputDir = path.resolve(args.output);
   await mkdir(outputDir, { recursive: true });
+  const harDir = harMode ? path.resolve(args.recordHar || args.replayHar) : null;
+  if (harDir) await mkdir(harDir, { recursive: true });
+  const harFallbacks = [];
+  const blockedRequests = [];
   const manifest = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     generatedAt: new Date().toISOString(),
     sourceUrl: sanitizeUrl(sourceUrl),
     candidateUrl: sanitizeUrl(candidateUrl),
     seed: config.seed ?? 1,
     captures: [],
   };
+  if (harMode) {
+    manifest.harFixtures = { mode: harMode, urlFilter: config.harFixture.urlFilter, files: [], fallbacks: harFallbacks, blockedRequests };
+  }
 
   try {
     for (const scenario of config.scenarios) {
@@ -179,24 +310,39 @@ async function main() {
         deviceScaleFactor: scenario.deviceScaleFactor || 1,
         locale: scenario.locale || "en-US",
         timezoneId: scenario.timezoneId || "UTC",
+        ...(harMode ? { serviceWorkers: "block" } : {}),
       };
+      const harPath = harMode ? path.join(harDir, `${id}.har`) : null;
+      const rawHarPath = args.recordHar ? path.join(harDir, `${id}.raw.har`) : null;
       const [sourceContext, candidateContext] = await Promise.all([
-        sourceBrowser.newContext(contextOptions),
+        sourceBrowser.newContext(rawHarPath ? {
+          ...contextOptions,
+          recordHar: { path: rawHarPath, content: "embed", mode: "minimal", urlFilter: config.harFixture.urlFilter },
+        } : contextOptions),
         candidateBrowser.newContext(contextOptions),
       ]);
+      let recordedEntries = null;
       try {
+        if (args.replayHar) {
+          await Promise.all([
+            installHarReplay(sourceContext, harPath, sourceCanonical.origin, "source", harFallbacks, blockedRequests),
+            installHarReplay(candidateContext, harPath, candidateCanonical.origin, "candidate", harFallbacks, blockedRequests),
+          ]);
+        }
         await Promise.all([
           installSeededRandom(sourceContext, config.seed ?? 1),
           installSeededRandom(candidateContext, config.seed ?? 1),
-          installNavigationGuard(sourceContext, new URL(sourceUrl).origin),
-          installNavigationGuard(candidateContext, new URL(candidateUrl).origin),
+          ...(args.replayHar ? [] : [
+            installNavigationGuard(sourceContext, sourceCanonical.origin),
+            installNavigationGuard(candidateContext, candidateCanonical.origin),
+          ]),
         ]);
         const route = scenario.route || "/";
         const sourceTarget = joinSameOrigin(sourceUrl, route, `Scenario '${id}' source route`);
         const candidateTarget = joinSameOrigin(candidateUrl, route, `Scenario '${id}' candidate route`);
         await Promise.all([
-          assertSameOriginRedirects(sourceTarget, new URL(sourceUrl).origin, `Scenario '${id}' source`, scenario.timeoutMs || 30000),
-          assertSameOriginRedirects(candidateTarget, new URL(candidateUrl).origin, `Scenario '${id}' candidate`, scenario.timeoutMs || 30000),
+          assertSameOriginRedirects(sourceTarget, sourceCanonical.origin, `Scenario '${id}' source`, scenario.timeoutMs || 30000),
+          assertSameOriginRedirects(candidateTarget, candidateCanonical.origin, `Scenario '${id}' candidate`, scenario.timeoutMs || 30000),
         ]);
         const [sourcePage, candidatePage] = await Promise.all([sourceContext.newPage(), candidateContext.newPage()]);
         const [sourceMeta, candidateMeta] = await Promise.all([
@@ -236,7 +382,21 @@ async function main() {
           candidate: { ...candidateMeta, finalUrl: sanitizeUrl(candidateMeta.finalUrl), image: path.basename(candidatePath) },
         });
       } finally {
-        await Promise.all([sourceContext.close(), candidateContext.close()]);
+        let closeError = null;
+        try {
+          await Promise.all([sourceContext.close(), candidateContext.close()]);
+        } catch (error) {
+          closeError = error;
+        }
+        if (rawHarPath) {
+          recordedEntries = await sanitizeRecordedHar(rawHarPath, harPath, harRebaseOrigins, candidateCanonical.origin);
+        }
+        if (closeError) throw closeError;
+      }
+      if (rawHarPath) {
+        manifest.harFixtures.files.push({ id, path: path.basename(harPath), entries: recordedEntries });
+      } else if (harPath) {
+        manifest.harFixtures.files.push({ id, path: path.basename(harPath) });
       }
     }
   } finally {
@@ -245,7 +405,7 @@ async function main() {
 
   const manifestPath = path.join(outputDir, "capture-manifest.json");
   await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
-  console.log(JSON.stringify({ output: outputDir, scenarios: manifest.captures.length, manifest: manifestPath }, null, 2));
+  console.log(JSON.stringify({ output: outputDir, scenarios: manifest.captures.length, manifest: manifestPath, harMode }, null, 2));
 }
 
 main().catch((error) => {

@@ -187,7 +187,7 @@ Recovery provenance and replay paperwork applies only when ownership/authorizati
 | `init_reconstruction.py` | Create a non-destructive `.gcw/` project record |
 | `finalize_teardown.py` | Validate companion artifacts and finalize SITE_SPEC |
 | `site_inventory.mjs` | Inventory routes and emit site, route-map, network, and source-map evidence |
-| `capture_compare.mjs` | Capture matched source and candidate states |
+| `capture_compare.mjs` | Capture matched states plus opt-in redacted SPA HAR record/replay |
 | `batch_image_diff.py` | Generate metrics, diff images and Markdown/JSON reports |
 | `route_smoke.py` | Check preview routes and representative text |
 | `install_ci.py` | Install the GCW visual-regression runner and workflow |

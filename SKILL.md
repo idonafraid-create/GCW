@@ -79,6 +79,15 @@ Restore only agreed pages, components, and states. Preserve deep links and respo
 python <skill-root>/scripts/route_smoke.py --base-url <preview-url> --route / --route /example
 ```
 
+SPA HAR fixtures are explicit opt-in. Set a narrow `harFixture.urlFilter` in the reviewed capture config, add third-party API origins to `harFixture.rebaseOrigins` when needed, then record and replay per-scenario fixtures:
+
+```text
+node <skill-root>/scripts/capture_compare.mjs --config <capture-scenarios.json> --output <record-results> --record-har <har-dir>
+node <skill-root>/scripts/capture_compare.mjs --config <offline-capture-scenarios.json> --output <replay-results> --replay-har <har-dir>
+```
+
+Recording strips credential headers/cookies, redacts sensitive query/body fields, and rebases captured service origins to the candidate origin before persisting each HAR. Replay blocks Service Workers, serves HAR matches first, blocks non-local misses, and records fallbacks/blocked requests in `capture-manifest.json`. For a fully offline fixture check, point both replay URLs at the local candidate preview and verify no candidate-side API path appears in `harFixtures.fallbacks`.
+
 For asset-heavy or offline work, read `references/asset-provenance.md`. For final clean/creative builds, read `references/runtime-independence.md`. Recovery configuration instead reads `references/recovery-tiers.md` and `references/gates.md` and adds provenance, hashes, replay strategy, route/deploy continuity, Known Gaps, and maintained CI.
 
 ## 5. Verify matched states

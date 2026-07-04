@@ -52,6 +52,9 @@ class FixtureHandler(BaseHTTPRequestHandler):
         if self.path == "/asset.bin":
             body = b"gcw-asset"
             content_type = "application/octet-stream"
+        elif self.path == "/api/data":
+            body = b'{"message":"fixture-data","token":"response-secret"}'
+            content_type = "application/json"
         elif self.path.startswith("/asset.js.map"):
             body = b'{"version":3,"sources":["asset.ts"],"names":[],"mappings":""}'
             content_type = "application/json"
@@ -71,6 +74,14 @@ class FixtureHandler(BaseHTTPRequestHandler):
         elif self.path == "/plain.css":
             body = b"html { background: black; }"
             content_type = "text/css"
+        elif self.path == "/spa":
+            body = b"""<!doctype html><title>SPA fixture</title>
+<body><div id='api-value'>loading</div><script>
+fetch('/api/data', {headers: {Authorization: 'Bearer request-secret'}})
+  .then(response => response.json())
+  .then(data => { document.querySelector('#api-value').textContent = data.message; });
+</script></body>"""
+            content_type = "text/html"
         elif self.path == "/child":
             body = b"<!doctype html><title>Child</title><h1>Child route</h1>"
             content_type = "text/html"
@@ -82,13 +93,43 @@ class FixtureHandler(BaseHTTPRequestHandler):
 <html><head><title>GCW fixture</title><link rel='stylesheet' href='/styles.css'><link rel='stylesheet' href='/plain.css'><script src='/asset.js?x-amz-signature=topsecret'></script></head>
 <body style='margin:0;background:#ff0000;min-height:100vh'><a href='/child'>Child</a>
 <canvas id='unused'></canvas><canvas id='used'></canvas>
-<script>document.querySelector('#used').getContext('2d'); setTimeout(() => { document.body.style.background = '#00ff00'; }, 1000);</script>
+<script>
+document.querySelector('#used').getContext('2d');
+setTimeout(() => { document.body.style.background = '#00ff00'; }, 1000);
+</script>
 </body></html>"""
             content_type = "text/html"
         self.send_response(200)
         self.send_header("Content-Type", f"{content_type}; charset=utf-8")
         if source_map_header:
             self.send_header("X-SourceMap", source_map_header)
+        if self.path == "/api/data":
+            self.send_header("Set-Cookie", "session=response-cookie-secret")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, format: str, *args: object) -> None:
+        pass
+
+
+class OfflineCandidateHandler(BaseHTTPRequestHandler):
+    api_hits = 0
+
+    def do_GET(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
+        if self.path == "/api/data":
+            type(self).api_hits += 1
+            self.send_error(503)
+            return
+        body = b"""<!doctype html><title>Offline candidate</title>
+<body><div id='api-value'>loading</div><script>
+fetch('/api/data', {headers: {Authorization: 'Bearer request-secret'}})
+  .then(response => response.json())
+  .then(data => { document.querySelector('#api-value').textContent = data.message; })
+  .catch(() => { document.querySelector('#api-value').textContent = 'offline'; });
+</script></body>"""
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -100,6 +141,20 @@ class FixtureHandler(BaseHTTPRequestHandler):
 @contextmanager
 def fixture_server():
     server = ThreadingHTTPServer(("127.0.0.1", 0), FixtureHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}"
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+
+@contextmanager
+def offline_candidate_server():
+    OfflineCandidateHandler.api_hits = 0
+    server = ThreadingHTTPServer(("127.0.0.1", 0), OfflineCandidateHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
@@ -355,6 +410,7 @@ class ReleaseSmokeTests(unittest.TestCase):
                 "sourceUrl": base,
                 "candidateUrl": base,
                 "seed": 7,
+                "harFixture": {"urlFilter": "**/api/**"},
                 "scenarios": [
                     {
                         "id": "phase",
@@ -374,6 +430,7 @@ class ReleaseSmokeTests(unittest.TestCase):
             run(NODE, "scripts/capture_compare.mjs", "--config", str(config_path), "--output", str(output))
             manifest = json.loads((output / "capture-manifest.json").read_text(encoding="utf-8"))
             self.assertEqual(manifest["captures"][0]["timing"]["phaseMs"], 1200)
+            self.assertNotIn("harFixtures", manifest)
             pixel = Image.open(output / "phase.source.png").convert("RGB").getpixel((32, 32))
             self.assertGreater(pixel[1], 200)
             self.assertLess(pixel[0], 30)
@@ -393,6 +450,68 @@ class ReleaseSmokeTests(unittest.TestCase):
                 expect=1,
             )
             self.assertIn("id collision", rejected.stderr)
+
+    def test_har_fixture_recording_is_opt_in_redacted_and_replays_offline(self) -> None:
+        with offline_candidate_server() as candidate, tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            har_dir = root / "har"
+            config_path = root / "capture.json"
+            with fixture_server() as source:
+                config = {
+                    "sourceUrl": source,
+                    "candidateUrl": candidate,
+                    "harFixture": {"urlFilter": "**/api/**"},
+                    "scenarios": [{"id": "spa", "route": "/spa", "readyFunction": "true", "afterInputDelayMs": 0}],
+                }
+                config_path.write_text(json.dumps(config), encoding="utf-8")
+                run(
+                    NODE, "scripts/capture_compare.mjs", "--config", str(config_path),
+                    "--output", str(root / "record"), "--record-har", str(har_dir),
+                )
+
+            har_path = har_dir / "spa.har"
+            self.assertTrue(har_path.is_file())
+            self.assertFalse((har_dir / "spa.raw.har").exists())
+            har_text = har_path.read_text(encoding="utf-8")
+            self.assertNotIn("request-secret", har_text)
+            self.assertNotIn("response-secret", har_text)
+            self.assertNotIn("response-cookie-secret", har_text)
+            self.assertNotIn(source, har_text)
+            self.assertIn(candidate, har_text)
+            self.assertIn("REDACTED", har_text)
+
+            config.update({"sourceUrl": candidate, "candidateUrl": candidate})
+            config["scenarios"][0]["readyFunction"] = "document.querySelector('#api-value')?.textContent === 'fixture-data'"
+            config_path.write_text(json.dumps(config), encoding="utf-8")
+            OfflineCandidateHandler.api_hits = 0
+            replay = run(
+                NODE, "scripts/capture_compare.mjs", "--config", str(config_path),
+                "--output", str(root / "replay"), "--replay-har", str(har_dir),
+            )
+            self.assertEqual(OfflineCandidateHandler.api_hits, 0)
+            self.assertIn('"harMode": "replay"', replay.stdout)
+            manifest = json.loads((root / "replay" / "capture-manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["harFixtures"]["mode"], "replay")
+            self.assertEqual(manifest["harFixtures"]["blockedRequests"], [])
+            self.assertFalse(any("/api/data" in item["url"] for item in manifest["harFixtures"]["fallbacks"]))
+
+            build = root / "dist"
+            build.mkdir()
+            (build / "index.js").write_text("const local = true;", encoding="utf-8")
+            run(
+                PYTHON, "scripts/check_runtime_independence.py", str(har_path),
+                "--source-url", source, "--build-dir", str(build),
+            )
+
+    def test_har_fixture_flags_are_explicit_and_mutually_exclusive(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            config = Path(temp) / "capture.json"
+            config.write_text(json.dumps({"sourceUrl": "https://example.com", "candidateUrl": "https://example.com", "scenarios": [{"id": "one", "readyFunction": "true"}]}), encoding="utf-8")
+            rejected = run(
+                NODE, "scripts/capture_compare.mjs", "--config", str(config), "--output", str(Path(temp) / "out"),
+                "--record-har", str(Path(temp) / "record"), "--replay-har", str(Path(temp) / "replay"), expect=1,
+            )
+            self.assertIn("mutually exclusive", rejected.stderr)
 
     def test_image_diff_threshold_validation_and_batch_gate(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
