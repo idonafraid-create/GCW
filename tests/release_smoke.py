@@ -184,6 +184,10 @@ class ReleaseSmokeTests(unittest.TestCase):
         for workflow in workflows:
             content = workflow.read_text(encoding="utf-8")
             self.assertIsNone(re.search(r"uses:\s+[^\s#]+@v\d+", content), workflow)
+            self.assertIn("actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0", content)
+            self.assertIn("actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e", content)
+            self.assertIn("actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1", content)
+        self.assertIn("actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a", workflows[1].read_text(encoding="utf-8"))
         installed_workflow = workflows[1].read_text(encoding="utf-8")
         self.assertIn("cd .gcw\n          npx playwright install", installed_workflow)
         self.assertNotIn("npx --prefix .gcw", installed_workflow)
