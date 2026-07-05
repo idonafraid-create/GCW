@@ -340,7 +340,7 @@ class ReleaseSmokeTests(unittest.TestCase):
         self.assertEqual(package["version"], lock["version"])
         self.assertEqual(package["dependencies"]["playwright"], harness["dependencies"]["playwright"])
         self.assertEqual(harness["dependencies"]["playwright"], harness_lock["packages"]["node_modules/playwright"]["version"])
-        self.assertEqual(package["version"], "1.3.0")
+        self.assertEqual(package["version"], "1.4.0")
 
         flow = "TEARDOWN_PHASE -> FAITHFUL_CLONE -> REVIEW_GATE -> CREATIVE_REBUILD"
         self.assertIn(flow, (ROOT / "README.md").read_text(encoding="utf-8"))
