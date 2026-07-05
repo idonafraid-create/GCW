@@ -772,6 +772,11 @@ Approved screenshots.
             self.assertTrue({"design-dna", "gpu-decision", "site-spec", "site-inventory", "route-map", "source-maps", "interaction-states"}.issubset({entry["kind"] for entry in evidence_index["entries"]}))
             design_entry = next(entry for entry in evidence_index["entries"] if entry["kind"] == "design-dna")
             self.assertEqual(design_entry["schemaContract"], "three-dimension-v1")
+            state_path = Path(temp) / ".gcw" / "run-state.json"
+            state["recoveryStrategy"] = "ARTIFACT_REPLAY"
+            state_path.write_text(json.dumps(state), encoding="utf-8")
+            blocked_closeout = run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "COMPLETE", expect=2)
+            self.assertIn("ARTIFACT_REPLAY is oracle-only", blocked_closeout.stderr)
 
     def test_editable_delivery_blocks_artifact_only_replay_and_migrates_legacy_strategy(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -783,12 +788,20 @@ Approved screenshots.
             )
             complete_teardown_artifacts(workspace)
             run(PYTHON, "scripts/finalize_teardown.py", temp)
+            direct_complete = run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "COMPLETE", expect=2)
+            self.assertIn("must pass FAITHFUL_CLONE and REVIEW_GATE", direct_complete.stderr)
             run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "FAITHFUL_CLONE")
             complete_clone_report(workspace)
             complete_editability_evidence(workspace)
 
             state_path = workspace / ".gcw" / "run-state.json"
             state = json.loads(state_path.read_text(encoding="utf-8"))
+            state["editabilityTarget"] = "RUNNABLE_REPLAY"
+            state_path.write_text(json.dumps(state), encoding="utf-8")
+            mismatched = run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "REVIEW_GATE", expect=2)
+            self.assertIn("delivery contract mismatch", mismatched.stderr)
+
+            state["editabilityTarget"] = "MAINTAINABLE_SOURCE"
             state["schemaVersion"] = 4
             state["recoveryStrategy"] = "ARTIFACT_REPLAY"
             state_path.write_text(json.dumps(state), encoding="utf-8")

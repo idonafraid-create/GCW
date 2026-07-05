@@ -68,7 +68,7 @@ def migrate_state(state: dict) -> None:
     state["schemaVersion"] = CURRENT_SCHEMA_VERSION
 
 
-def apply_delivery_contract(state: dict, choice: str) -> None:
+def apply_delivery_contract(state: dict, choice: str, *, building: bool) -> None:
     previous = {
         "finalDeliverable": state.get("finalDeliverable"),
         "editabilityTarget": state.get("editabilityTarget"),
@@ -77,7 +77,9 @@ def apply_delivery_contract(state: dict, choice: str) -> None:
     state["finalDeliverable"] = final_deliverable
     state["editabilityTarget"] = editability_target
     state["deliveryContractConfirmedForBuild"] = True
-    if choice == "B":
+    if choice == "A":
+        state["outcome"] = "faithful-clone" if building else "teardown"
+    elif choice == "B":
         state["outcome"] = "faithful-clone"
     elif choice == "C":
         state["outcome"] = "creative-rebuild"
@@ -88,6 +90,28 @@ def apply_delivery_contract(state: dict, choice: str) -> None:
         "editabilityTarget": editability_target,
         "recordedAt": datetime.now(timezone.utc).isoformat(),
     })
+
+
+def validate_delivery_contract(state: dict, *, require_build_confirmation: bool) -> None:
+    expected_targets = {final: target for final, target in DELIVERY_CONTRACTS.values()}
+    final_deliverable = state.get("finalDeliverable")
+    editability_target = state.get("editabilityTarget")
+    if final_deliverable not in expected_targets:
+        raise ValueError(f"invalid or unconfirmed finalDeliverable: {final_deliverable}")
+    if editability_target != expected_targets[final_deliverable]:
+        raise ValueError(
+            f"delivery contract mismatch: {final_deliverable} requires editabilityTarget "
+            f"{expected_targets[final_deliverable]}"
+        )
+    outcome = state.get("outcome")
+    if final_deliverable == "EDITABLE_FAITHFUL_CLONE" and outcome != "faithful-clone":
+        raise ValueError("EDITABLE_FAITHFUL_CLONE requires outcome faithful-clone")
+    if final_deliverable == "EDITABLE_FAITHFUL_CLONE_THEN_CREATIVE" and outcome != "creative-rebuild":
+        raise ValueError("EDITABLE_FAITHFUL_CLONE_THEN_CREATIVE requires outcome creative-rebuild")
+    if final_deliverable == "RESEARCH_OR_RUNNABLE_REPLAY" and outcome == "creative-rebuild":
+        raise ValueError("RESEARCH_OR_RUNNABLE_REPLAY cannot use outcome creative-rebuild")
+    if require_build_confirmation and not state.get("deliveryContractConfirmedForBuild"):
+        raise ValueError("build work requires an explicitly confirmed final deliverable A, B, or C")
 
 
 def require_project_file(workspace: Path, value: object, label: str, *, source: bool = False) -> Path:
@@ -205,7 +229,11 @@ def main() -> int:
     if args.final_deliverable is not None:
         if current not in {"TEARDOWN_PHASE", "FAITHFUL_CLONE"}:
             parser.error("--final-deliverable can only change the contract before REVIEW_GATE")
-        apply_delivery_contract(state, args.final_deliverable)
+        apply_delivery_contract(
+            state,
+            args.final_deliverable,
+            building=current == "FAITHFUL_CLONE" or args.to == "FAITHFUL_CLONE",
+        )
     if args.to not in TRANSITIONS.get(current, set()):
         parser.error(f"invalid transition: {current} -> {args.to}")
     if current == "REVIEW_GATE":
@@ -225,16 +253,35 @@ def main() -> int:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         if manifest.get("status") != "passed" or manifest.get("siteSpec", {}).get("status") != "final":
             parser.error("leaving TEARDOWN_PHASE requires scripts/finalize_teardown.py to pass")
-        if args.to == "FAITHFUL_CLONE" and not state.get("deliveryContractConfirmedForBuild"):
-            parser.error("build work requires an explicitly confirmed final deliverable A, B, or C")
+        if args.to == "COMPLETE" and (
+            state.get("finalDeliverable") in {
+                "EDITABLE_FAITHFUL_CLONE",
+                "EDITABLE_FAITHFUL_CLONE_THEN_CREATIVE",
+            }
+            or state.get("editabilityTarget") == "MAINTAINABLE_SOURCE"
+        ):
+            parser.error("editable final deliverables must pass FAITHFUL_CLONE and REVIEW_GATE before COMPLETE")
+        if args.to == "FAITHFUL_CLONE":
+            try:
+                validate_delivery_contract(state, require_build_confirmation=True)
+            except ValueError as error:
+                parser.error(str(error))
     if args.to == "REVIEW_GATE":
         try:
+            validate_delivery_contract(state, require_build_confirmation=True)
             require_completed_file(root / "CLONE_REPORT.md", "CLONE_REPORT.md")
             validate_editability_contract(args.workspace.resolve(), root, state)
         except ValueError as error:
             parser.error(str(error))
     if current == "REVIEW_GATE" and args.decision in {"B", "C"}:
         try:
+            validate_delivery_contract(state, require_build_confirmation=True)
+            validate_editability_contract(args.workspace.resolve(), root, state)
+        except ValueError as error:
+            parser.error(str(error))
+    if current == "CREATIVE_REBUILD" and args.to == "COMPLETE":
+        try:
+            validate_delivery_contract(state, require_build_confirmation=True)
             validate_editability_contract(args.workspace.resolve(), root, state)
         except ValueError as error:
             parser.error(str(error))
