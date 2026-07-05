@@ -28,6 +28,7 @@ Amendment, 2026-07-05:
 - Choices B/C make maintainable-source editability a `FAITHFUL_CLONE` gate; it cannot be deferred to `CREATIVE_REBUILD`.
 - `ARTIFACT_REPLAY` is oracle-only for B/C. Authorized recovery uses `MAINTAINABLE_REBUILD` as the final editable strategy; schema-v4 `EDITABLE_REBUILD` is a migrated legacy name.
 - Runtime independence applies to every final `MAINTAINABLE_SOURCE` delivery, including an editable faithful clone that stops before Creative.
+- Choice B is a durable accepted checkpoint. An explicit later decision C may resume `CREATIVE_REBUILD` from completed B after revalidating the B review record, editability evidence, and Creative Brief; choice A cannot resume this way.
 
 ## Consequences
 

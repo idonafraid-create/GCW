@@ -54,10 +54,10 @@ TEARDOWN_PHASE -> FAITHFUL_CLONE -> REVIEW_GATE -> CREATIVE_REBUILD
 | 选择 | 最终交付 | 可编辑性目标 |
 |---|---|---|
 | A | 仅研究或可运行回放 | `RUNNABLE_REPLAY` |
-| B | 可编辑忠实复刻 | `MAINTAINABLE_SOURCE` |
+| B | 可编辑忠实复刻；验收后可停止，以后仍可升级到 C | `MAINTAINABLE_SOURCE` |
 | C | 可编辑忠实复刻，验收后继续 Creative | `MAINTAINABLE_SOURCE` |
 
-对 B/C，可编辑性属于 `FAITHFUL_CLONE`。`ARTIFACT_REPLAY` 可以保留为 oracle，但纯生产 Artifact 候选不能通过正式评审。`CREATIVE_REBUILD` 只在验收后负责内容、品牌和批准的创新，不负责补救源码可维护性。
+对 B/C，可编辑性属于 `FAITHFUL_CLONE`。`ARTIFACT_REPLAY` 可以保留为 oracle，但纯生产 Artifact 候选不能通过正式评审。`CREATIVE_REBUILD` 只在验收后负责内容、品牌和批准的创新，不负责补救源码可维护性。B 是可长期保留的验收检查点，不是永久分叉：用户可以在评审时把 B 升级为 C，也可以在 B 已完成后凭明确的 C 决定与 Creative Brief 恢复 Creative 阶段。
 
 拆解深度随目标缩放：`minimal` 仅用于明确的简单非 GPU 页面，`standard` 为默认档，`deep` 为复杂渲染与恢复任务保留完整契约。
 

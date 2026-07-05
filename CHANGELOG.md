@@ -9,6 +9,7 @@
 ### Changed
 
 - Production recovery now names the maintainable strategy `MAINTAINABLE_REBUILD`; schema-v4 `EDITABLE_REBUILD` states migrate with an audit record, while `ARTIFACT_REPLAY` remains oracle-only for editable delivery.
+- Choice B now remains upgradeable to C at review or after completion; resuming Creative revalidates the accepted editable baseline and requires an explicit decision C plus Creative Brief.
 
 ## 1.3.0 - 2026-07-04
 

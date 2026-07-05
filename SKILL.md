@@ -37,7 +37,7 @@ Before every build-type reconstruction, ask the ordinary user to choose exactly 
 - B: editable faithful clone (`EDITABLE_FAITHFUL_CLONE`, `MAINTAINABLE_SOURCE`).
 - C: editable faithful clone, then Creative after review (`EDITABLE_FAITHFUL_CLONE_THEN_CREATIVE`, `MAINTAINABLE_SOURCE`).
 
-Ask one additional path-changing question when intent or ownership is unclear. Use the single flow `TEARDOWN_PHASE -> FAITHFUL_CLONE -> REVIEW_GATE -> CREATIVE_REBUILD`. A teardown-only outcome stops after the first phase. Editability for B/C is a `FAITHFUL_CLONE` requirement; `CREATIVE_REBUILD` only performs approved post-review content, brand, and feature innovation. Never silently expand scope.
+Choice B is a durable accepted baseline, not a permanent opt-out from Creative. The user may explicitly upgrade B to C at `REVIEW_GATE` or later resume Creative from a completed B delivery. Ask one additional path-changing question when intent or ownership is unclear. Use the single flow `TEARDOWN_PHASE -> FAITHFUL_CLONE -> REVIEW_GATE -> CREATIVE_REBUILD`. A teardown-only outcome stops after the first phase. Editability for B/C is a `FAITHFUL_CLONE` requirement; `CREATIVE_REBUILD` only performs approved post-review content, brand, and feature innovation. Never silently expand scope.
 
 Choose the faithful implementation path from evidence: `SOURCE_ADAPT`, `CLEAN_REBUILD`, or `PRODUCTION_RECOVERY`. Enable recovery only when the user confirms ownership/authorization and maintainable source is unavailable.
 
@@ -137,7 +137,7 @@ Present the baseline, preview, screenshots, Diff, `CLONE_REPORT.md`, and Known G
 - B: baseline accepted; stop.
 - C: baseline accepted for innovation; create `.gcw/CREATIVE_BRIEF.md`, then enter `CREATIVE_REBUILD`.
 
-Use `scripts/advance_workflow.py` to record transitions. Entering `REVIEW_GATE` requires a completed `CLONE_REPORT.md`; B/C additionally require confirmed editability evidence and reject final strategy `ARTIFACT_REPLAY`. Leaving the gate revalidates the delivery contract, requires `--decision A|B|C`, and the selected destination must match the list above. Decision C is valid only for a pre-recorded final deliverable C and additionally requires a completed `CREATIVE_BRIEF.md`; the script never creates or fills that proof itself. It refuses to leave teardown until `finalize_teardown.py` has passed.
+Use `scripts/advance_workflow.py` to record transitions. Entering `REVIEW_GATE` requires a completed `CLONE_REPORT.md`; B/C additionally require confirmed editability evidence and reject final strategy `ARTIFACT_REPLAY`. Leaving the gate revalidates the delivery contract, requires `--decision A|B|C`, and the selected destination must match the list above. Decision C may upgrade an accepted B baseline to C and requires a completed `CREATIVE_BRIEF.md`; the script never creates or fills that proof itself. After a B delivery reaches `COMPLETE`, the user may later resume with `--to CREATIVE_REBUILD --decision C`; this revalidates the accepted B decision and editability evidence before upgrading the persisted contract. Choice A cannot use this path. The script refuses to leave teardown until `finalize_teardown.py` has passed.
 
 ## 7. Close out honestly
 

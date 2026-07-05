@@ -54,10 +54,10 @@ Before any build starts, GCW asks the ordinary user once and records both `Final
 | Choice | Final deliverable | Editability target |
 |---|---|---|
 | A | Research or runnable replay only | `RUNNABLE_REPLAY` |
-| B | Editable faithful clone | `MAINTAINABLE_SOURCE` |
+| B | Editable faithful clone; stop after acceptance, with a later C upgrade still available | `MAINTAINABLE_SOURCE` |
 | C | Editable faithful clone, then Creative after review | `MAINTAINABLE_SOURCE` |
 
-For B/C, editability is part of `FAITHFUL_CLONE`. `ARTIFACT_REPLAY` may remain an oracle, but an artifact-only candidate cannot pass formal review. `CREATIVE_REBUILD` starts only after acceptance and owns content, brand, and approved innovation—not source maintainability.
+For B/C, editability is part of `FAITHFUL_CLONE`. `ARTIFACT_REPLAY` may remain an oracle, but an artifact-only candidate cannot pass formal review. `CREATIVE_REBUILD` starts only after acceptance and owns content, brand, and approved innovation—not source maintainability. B is a durable checkpoint rather than a permanent fork: the user may upgrade it to C during review or resume Creative later from the completed B delivery with an explicit C decision and Creative Brief.
 
 Teardown depth scales with the target: `minimal` is an explicit simple non-GPU page profile, `standard` is the default, and `deep` retains the full contract for complex rendering and recovery work.
 

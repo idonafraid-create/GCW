@@ -20,6 +20,8 @@ New build initialization requires `--final-deliverable A|B|C`. Teardown-only ini
 
 SITE_SPEC section 1 must state both delivery fields. Section 10 must turn `MAINTAINABLE_SOURCE` into acceptance criteria rather than deferring editability to `CREATIVE_REBUILD`.
 
+Choice B remains an accepted, reusable checkpoint. A decision C at `REVIEW_GATE`, or an explicit C resume from a completed B delivery, updates `finalDeliverable` and `outcome`, appends `deliveryContractHistory`, and records the transition in `reviewDecisions`. Resuming from `COMPLETE` requires the earlier accepted B decision and revalidates the editability evidence; choice A is not eligible.
+
 ## Fixed evidence
 
 Every task preserves:

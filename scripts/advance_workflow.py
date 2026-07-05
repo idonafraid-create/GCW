@@ -15,6 +15,7 @@ TRANSITIONS = {
     "FAITHFUL_CLONE": {"REVIEW_GATE"},
     "REVIEW_GATE": {"FAITHFUL_CLONE", "COMPLETE", "CREATIVE_REBUILD"},
     "CREATIVE_REBUILD": {"COMPLETE"},
+    "COMPLETE": {"CREATIVE_REBUILD"},
 }
 
 REVIEW_DESTINATIONS = {"A": "FAITHFUL_CLONE", "B": "COMPLETE", "C": "CREATIVE_REBUILD"}
@@ -197,6 +198,22 @@ def validate_editability_contract(workspace: Path, root: Path, state: dict) -> N
     require_evidence_files(workspace, runtime.get("evidence"), "runtimeIndependence.evidence")
 
 
+def validate_completed_b_resume(workspace: Path, root: Path, state: dict) -> None:
+    validate_delivery_contract(state, require_build_confirmation=True)
+    if state.get("finalDeliverable") != "EDITABLE_FAITHFUL_CLONE":
+        raise ValueError("resuming Creative requires a completed editable faithful clone from choice B")
+    decisions = state.get("reviewDecisions")
+    if not isinstance(decisions, list) or not any(
+        item.get("decision") == "B"
+        and item.get("from") == "REVIEW_GATE"
+        and item.get("to") == "COMPLETE"
+        for item in decisions
+        if isinstance(item, dict)
+    ):
+        raise ValueError("resuming Creative requires an accepted choice-B REVIEW_GATE decision")
+    validate_editability_contract(workspace, root, state)
+
+
 def validate_creative_brief(path: Path) -> None:
     text = require_nonempty_file(path, "CREATIVE_BRIEF.md")
     matches = list(re.finditer(r"^## (.+?)\s*$", text, re.MULTILINE))
@@ -242,10 +259,21 @@ def main() -> int:
         expected = REVIEW_DESTINATIONS[args.decision]
         if args.to != expected:
             parser.error(f"review decision {args.decision} requires --to {expected}")
-        if args.decision == "C" and state.get("finalDeliverable") != "EDITABLE_FAITHFUL_CLONE_THEN_CREATIVE":
-            parser.error("review decision C requires final deliverable C recorded before REVIEW_GATE")
+        if args.decision == "C":
+            if state.get("finalDeliverable") == "EDITABLE_FAITHFUL_CLONE":
+                apply_delivery_contract(state, "C", building=True)
+            elif state.get("finalDeliverable") != "EDITABLE_FAITHFUL_CLONE_THEN_CREATIVE":
+                parser.error("review decision C requires an editable faithful choice B or C baseline")
+    elif current == "COMPLETE" and args.to == "CREATIVE_REBUILD":
+        if args.decision != "C":
+            parser.error("resuming Creative from COMPLETE requires --decision C")
+        try:
+            validate_completed_b_resume(args.workspace.resolve(), root, state)
+        except ValueError as error:
+            parser.error(str(error))
+        apply_delivery_contract(state, "C", building=True)
     elif args.decision is not None:
-        parser.error("--decision is only valid when leaving REVIEW_GATE")
+        parser.error("--decision is only valid when leaving REVIEW_GATE or resuming Creative from COMPLETE")
     if current == "TEARDOWN_PHASE":
         manifest_path = root / "teardown-manifest.json"
         if not manifest_path.is_file():
@@ -290,7 +318,7 @@ def main() -> int:
             validate_creative_brief(root / "CREATIVE_BRIEF.md")
         except ValueError as error:
             parser.error(str(error))
-    if current == "REVIEW_GATE":
+    if current in {"REVIEW_GATE", "COMPLETE"}:
         decisions = state.setdefault("reviewDecisions", [])
         if not isinstance(decisions, list):
             parser.error("run-state.json reviewDecisions must be an array")

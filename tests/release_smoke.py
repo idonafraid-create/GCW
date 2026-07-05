@@ -286,6 +286,39 @@ def complete_editability_evidence(workspace: Path) -> None:
     evidence_path.write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
 
 
+def complete_creative_brief(workspace: Path) -> None:
+    brief = """# Creative brief
+
+## Keep
+Layout.
+## Remove
+Original branding.
+## Change
+Content.
+## New brand, content, and features
+New identity.
+## Innovation direction
+Editorial motion.
+## Final acceptance target
+Approved screenshots.
+"""
+    (workspace / ".gcw" / "CREATIVE_BRIEF.md").write_text(brief, encoding="utf-8")
+
+
+def prepare_editable_review(workspace: Path) -> None:
+    run(
+        PYTHON, "scripts/init_reconstruction.py", str(workspace),
+        "--url", "https://example.com/", "--outcome", "faithful-clone",
+        "--final-deliverable", "B",
+    )
+    complete_teardown_artifacts(workspace)
+    run(PYTHON, "scripts/finalize_teardown.py", str(workspace))
+    run(PYTHON, "scripts/advance_workflow.py", str(workspace), "--to", "FAITHFUL_CLONE")
+    complete_clone_report(workspace)
+    complete_editability_evidence(workspace)
+    run(PYTHON, "scripts/advance_workflow.py", str(workspace), "--to", "REVIEW_GATE")
+
+
 class ReleaseSmokeTests(unittest.TestCase):
     def test_skill_and_package_contract(self) -> None:
         skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
@@ -328,11 +361,14 @@ class ReleaseSmokeTests(unittest.TestCase):
         self.assertIn("Final deliverable:", skill)
         self.assertIn("Editability target:", skill)
         self.assertIn("MAINTAINABLE_REBUILD", skill)
+        self.assertIn("resume Creative from a completed B delivery", skill)
         for readme in (ROOT / "README.md", ROOT / "README.zh-CN.md"):
             content = readme.read_text(encoding="utf-8")
             self.assertIn("Final deliverable", content)
             self.assertIn("Editability target", content)
             self.assertIn("MAINTAINABLE_REBUILD", content)
+        self.assertIn("resume Creative later", (ROOT / "README.md").read_text(encoding="utf-8"))
+        self.assertIn("以后仍可升级到 C", (ROOT / "README.zh-CN.md").read_text(encoding="utf-8"))
         for asset in (
             "site-spec-template.md", "site-spec-minimal-template.md", "creative-brief-template.md", "asset-manifest.example.json",
             "clone-report-template.md", "replacement-map-template.md", "editability-evidence.template.json",
@@ -746,22 +782,7 @@ class ReleaseSmokeTests(unittest.TestCase):
             self.assertIn("--decision", missing_decision.stderr)
             missing_brief = run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "CREATIVE_REBUILD", "--decision", "C", expect=2)
             self.assertIn("CREATIVE_BRIEF.md", missing_brief.stderr)
-            brief = """# Creative brief
-
-## Keep
-Layout.
-## Remove
-Original branding.
-## Change
-Content.
-## New brand, content, and features
-New identity.
-## Innovation direction
-Editorial motion.
-## Final acceptance target
-Approved screenshots.
-"""
-            (Path(temp) / ".gcw" / "CREATIVE_BRIEF.md").write_text(brief, encoding="utf-8")
+            complete_creative_brief(Path(temp))
             run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "CREATIVE_REBUILD", "--decision", "C")
             state = json.loads((Path(temp) / ".gcw" / "run-state.json").read_text(encoding="utf-8"))
             self.assertEqual(state["reviewDecisions"][-1]["decision"], "C")
@@ -777,6 +798,58 @@ Approved screenshots.
             state_path.write_text(json.dumps(state), encoding="utf-8")
             blocked_closeout = run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "COMPLETE", expect=2)
             self.assertIn("ARTIFACT_REPLAY is oracle-only", blocked_closeout.stderr)
+
+    def test_editable_b_can_upgrade_to_c_at_review(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Path(temp)
+            prepare_editable_review(workspace)
+            complete_creative_brief(workspace)
+            run(
+                PYTHON, "scripts/advance_workflow.py", temp,
+                "--to", "CREATIVE_REBUILD", "--decision", "C",
+            )
+            state = json.loads((workspace / ".gcw" / "run-state.json").read_text(encoding="utf-8"))
+            self.assertEqual(state["currentPhase"], "CREATIVE_REBUILD")
+            self.assertEqual(state["finalDeliverable"], "EDITABLE_FAITHFUL_CLONE_THEN_CREATIVE")
+            self.assertEqual(state["outcome"], "creative-rebuild")
+            self.assertEqual(state["deliveryContractHistory"][-1]["choice"], "C")
+            self.assertEqual(state["deliveryContractHistory"][-1]["previous"]["finalDeliverable"], "EDITABLE_FAITHFUL_CLONE")
+
+    def test_completed_b_can_resume_creative_but_a_cannot(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Path(temp)
+            prepare_editable_review(workspace)
+            run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "COMPLETE", "--decision", "B")
+            missing_brief = run(
+                PYTHON, "scripts/advance_workflow.py", temp,
+                "--to", "CREATIVE_REBUILD", "--decision", "C", expect=2,
+            )
+            self.assertIn("CREATIVE_BRIEF.md", missing_brief.stderr)
+            complete_creative_brief(workspace)
+            run(
+                PYTHON, "scripts/advance_workflow.py", temp,
+                "--to", "CREATIVE_REBUILD", "--decision", "C",
+            )
+            state = json.loads((workspace / ".gcw" / "run-state.json").read_text(encoding="utf-8"))
+            self.assertEqual(state["currentPhase"], "CREATIVE_REBUILD")
+            self.assertEqual(state["reviewDecisions"][-1]["from"], "COMPLETE")
+            self.assertEqual(state["reviewDecisions"][-1]["decision"], "C")
+
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Path(temp)
+            run(PYTHON, "scripts/init_reconstruction.py", temp, "--url", "https://example.com/")
+            complete_teardown_artifacts(workspace)
+            run(PYTHON, "scripts/finalize_teardown.py", temp)
+            run(
+                PYTHON, "scripts/advance_workflow.py", temp,
+                "--to", "COMPLETE", "--final-deliverable", "A",
+            )
+            complete_creative_brief(workspace)
+            blocked = run(
+                PYTHON, "scripts/advance_workflow.py", temp,
+                "--to", "CREATIVE_REBUILD", "--decision", "C", expect=2,
+            )
+            self.assertIn("completed editable faithful clone", blocked.stderr)
 
     def test_editable_delivery_blocks_artifact_only_replay_and_migrates_legacy_strategy(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

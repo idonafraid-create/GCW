@@ -16,7 +16,7 @@ Before any build work, ask the ordinary user to choose one final-deliverable con
 | B | `EDITABLE_FAITHFUL_CLONE` | `MAINTAINABLE_SOURCE` |
 | C | `EDITABLE_FAITHFUL_CLONE_THEN_CREATIVE` | `MAINTAINABLE_SOURCE` |
 
-Choice A may stop after research or deliver an explicitly replay-only build. Choices B and C require editability inside `FAITHFUL_CLONE`; `CREATIVE_REBUILD` begins only after the editable faithful baseline passes review and is limited to content, brand, and approved innovation.
+Choice A may stop after research or deliver an explicitly replay-only build. Choices B and C require editability inside `FAITHFUL_CLONE`; `CREATIVE_REBUILD` begins only after the editable faithful baseline passes review and is limited to content, brand, and approved innovation. Choice B is a durable checkpoint: it may be upgraded to C during review or resumed later from `COMPLETE` with a new Creative Brief and explicit decision C.
 
 Every `TEARDOWN_PHASE` requires `design-dna` before its deliverables are finalized, including study-only work. Canvas/WebGL/WebGPU/shader surfaces additionally require `web-shader-extractor`; when inventory evidence confirms none exist, record GPU analysis as `N/A`. Integrate both decisions and all resulting evidence into `SITE_SPEC.md` before leaving teardown.
 
@@ -39,5 +39,7 @@ For choices B and C, `ARTIFACT_REPLAY` may establish an oracle but cannot be the
 ## Review gate choices
 
 - Fidelity insufficient: return to `FAITHFUL_CLONE`.
-- Baseline accepted as final: stop.
+- Baseline accepted as final: stop at B; the accepted editable baseline remains eligible for a later C upgrade.
 - Baseline accepted for innovation: create `.gcw/CREATIVE_BRIEF.md`, then enter `CREATIVE_REBUILD`.
+
+Resuming from completed B revalidates the recorded B review decision, delivery contract, editability evidence, and Creative Brief. Choice A has no maintainable-source baseline and cannot resume Creative.
