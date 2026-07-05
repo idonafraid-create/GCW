@@ -18,6 +18,12 @@ TRANSITIONS = {
 }
 
 REVIEW_DESTINATIONS = {"A": "FAITHFUL_CLONE", "B": "COMPLETE", "C": "CREATIVE_REBUILD"}
+DELIVERY_CONTRACTS = {
+    "A": ("RESEARCH_OR_RUNNABLE_REPLAY", "RUNNABLE_REPLAY"),
+    "B": ("EDITABLE_FAITHFUL_CLONE", "MAINTAINABLE_SOURCE"),
+    "C": ("EDITABLE_FAITHFUL_CLONE_THEN_CREATIVE", "MAINTAINABLE_SOURCE"),
+}
+CURRENT_SCHEMA_VERSION = 5
 CREATIVE_BRIEF_SECTIONS = (
     "Keep",
     "Remove",
@@ -35,6 +41,136 @@ def require_nonempty_file(path: Path, label: str) -> str:
     if not text.strip():
         raise ValueError(f"{label} must not be empty: {path}")
     return text
+
+
+def require_completed_file(path: Path, label: str) -> str:
+    text = require_nonempty_file(path, label)
+    if "REQUIRED" in text:
+        raise ValueError(f"{label} contains REQUIRED placeholders: {path}")
+    return text
+
+
+def migrate_state(state: dict) -> None:
+    schema_version = state.get("schemaVersion", 0)
+    if not isinstance(schema_version, int) or schema_version > CURRENT_SCHEMA_VERSION:
+        raise ValueError(f"unsupported run-state.json schemaVersion: {schema_version}")
+    if state.get("recoveryStrategy") == "EDITABLE_REBUILD":
+        state["recoveryStrategy"] = "MAINTAINABLE_REBUILD"
+        state.setdefault("stateMigrations", []).append({
+            "field": "recoveryStrategy",
+            "from": "EDITABLE_REBUILD",
+            "to": "MAINTAINABLE_REBUILD",
+            "recordedAt": datetime.now(timezone.utc).isoformat(),
+        })
+    state.setdefault("finalDeliverable", "UNCONFIRMED")
+    state.setdefault("editabilityTarget", "UNCONFIRMED")
+    state.setdefault("deliveryContractConfirmedForBuild", False)
+    state["schemaVersion"] = CURRENT_SCHEMA_VERSION
+
+
+def apply_delivery_contract(state: dict, choice: str) -> None:
+    previous = {
+        "finalDeliverable": state.get("finalDeliverable"),
+        "editabilityTarget": state.get("editabilityTarget"),
+    }
+    final_deliverable, editability_target = DELIVERY_CONTRACTS[choice]
+    state["finalDeliverable"] = final_deliverable
+    state["editabilityTarget"] = editability_target
+    state["deliveryContractConfirmedForBuild"] = True
+    if choice == "B":
+        state["outcome"] = "faithful-clone"
+    elif choice == "C":
+        state["outcome"] = "creative-rebuild"
+    state.setdefault("deliveryContractHistory", []).append({
+        "choice": choice,
+        "previous": previous,
+        "finalDeliverable": final_deliverable,
+        "editabilityTarget": editability_target,
+        "recordedAt": datetime.now(timezone.utc).isoformat(),
+    })
+
+
+def require_project_file(workspace: Path, value: object, label: str, *, source: bool = False) -> Path:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{label} must be a non-empty workspace-relative path")
+    relative = Path(value)
+    if relative.is_absolute():
+        raise ValueError(f"{label} must be workspace-relative: {value}")
+    resolved = (workspace / relative).resolve()
+    if workspace != resolved and workspace not in resolved.parents:
+        raise ValueError(f"{label} leaves the workspace: {value}")
+    if not resolved.is_file():
+        raise ValueError(f"{label} is required: {resolved}")
+    if source:
+        parts = {part.lower() for part in relative.parts}
+        if parts.intersection({"dist", "build", ".next", "_next", "chunks"}) or resolved.name.endswith(".min.js"):
+            raise ValueError(f"{label} must point to maintainable source, not a production artifact: {value}")
+    return resolved
+
+
+def require_evidence_files(workspace: Path, value: object, label: str) -> None:
+    if not isinstance(value, list) or not value:
+        raise ValueError(f"{label} must contain at least one evidence path")
+    for index, item in enumerate(value):
+        require_project_file(workspace, item, f"{label}[{index}]")
+
+
+def validate_editability_contract(workspace: Path, root: Path, state: dict) -> None:
+    if state.get("editabilityTarget") != "MAINTAINABLE_SOURCE":
+        return
+    if state.get("finalDeliverable") not in {
+        "EDITABLE_FAITHFUL_CLONE",
+        "EDITABLE_FAITHFUL_CLONE_THEN_CREATIVE",
+    }:
+        raise ValueError("MAINTAINABLE_SOURCE requires an editable final deliverable")
+    recovery_strategy = state.get("recoveryStrategy", "")
+    if recovery_strategy == "ARTIFACT_REPLAY":
+        raise ValueError("ARTIFACT_REPLAY is oracle-only for MAINTAINABLE_SOURCE and cannot pass the formal delivery gate")
+    if state.get("implementationPath") == "PRODUCTION_RECOVERY" and recovery_strategy != "MAINTAINABLE_REBUILD":
+        raise ValueError("PRODUCTION_RECOVERY with MAINTAINABLE_SOURCE requires recoveryStrategy MAINTAINABLE_REBUILD")
+
+    evidence_path = root / "editability-evidence.json"
+    try:
+        evidence = json.loads(require_nonempty_file(evidence_path, "editability-evidence.json"))
+    except json.JSONDecodeError as error:
+        raise ValueError(f"invalid editability-evidence.json: {error}") from error
+    if evidence.get("schemaVersion") != 1:
+        raise ValueError("editability-evidence.json schemaVersion must be 1")
+    if evidence.get("reviewStatus") != "confirmed":
+        raise ValueError("editability-evidence.json reviewStatus must be confirmed")
+    if evidence.get("artifactReplayRole") not in {"not-used", "oracle-only"}:
+        raise ValueError("editability-evidence.json artifactReplayRole must be not-used or oracle-only")
+
+    require_project_file(
+        workspace,
+        evidence.get("maintainableSourceEntrypoint"),
+        "maintainableSourceEntrypoint",
+        source=True,
+    )
+    replacement_map = require_project_file(
+        workspace,
+        evidence.get("contentReplacementMap"),
+        "contentReplacementMap",
+    )
+    require_completed_file(replacement_map, "content replacement map")
+
+    change = evidence.get("controlledContentChange")
+    if not isinstance(change, dict):
+        raise ValueError("editability-evidence.json controlledContentChange must be an object")
+    require_project_file(workspace, change.get("sourceFile"), "controlledContentChange.sourceFile", source=True)
+    for field in ("field", "beforeValue", "afterValue", "buildCommand"):
+        if not isinstance(change.get(field), str) or not change[field].strip():
+            raise ValueError(f"controlledContentChange.{field} must not be empty")
+    if change["beforeValue"] == change["afterValue"]:
+        raise ValueError("controlledContentChange beforeValue and afterValue must differ")
+    if change.get("productionBundlesModified") is not False:
+        raise ValueError("controlledContentChange.productionBundlesModified must be false")
+    require_evidence_files(workspace, change.get("evidence"), "controlledContentChange.evidence")
+
+    runtime = evidence.get("runtimeIndependence")
+    if not isinstance(runtime, dict) or runtime.get("status") != "passed":
+        raise ValueError("editability-evidence.json runtimeIndependence.status must be passed")
+    require_evidence_files(workspace, runtime.get("evidence"), "runtimeIndependence.evidence")
 
 
 def validate_creative_brief(path: Path) -> None:
@@ -56,11 +192,20 @@ def main() -> int:
     parser.add_argument("workspace", type=Path)
     parser.add_argument("--to", required=True, choices=sorted({phase for values in TRANSITIONS.values() for phase in values}))
     parser.add_argument("--decision", choices=sorted(REVIEW_DESTINATIONS))
+    parser.add_argument("--final-deliverable", choices=tuple(DELIVERY_CONTRACTS))
     args = parser.parse_args()
     root = args.workspace.resolve() / ".gcw"
     state_path = root / "run-state.json"
     state = json.loads(state_path.read_text(encoding="utf-8"))
+    try:
+        migrate_state(state)
+    except ValueError as error:
+        parser.error(str(error))
     current = state.get("currentPhase", state.get("state"))
+    if args.final_deliverable is not None:
+        if current not in {"TEARDOWN_PHASE", "FAITHFUL_CLONE"}:
+            parser.error("--final-deliverable can only change the contract before REVIEW_GATE")
+        apply_delivery_contract(state, args.final_deliverable)
     if args.to not in TRANSITIONS.get(current, set()):
         parser.error(f"invalid transition: {current} -> {args.to}")
     if current == "REVIEW_GATE":
@@ -69,6 +214,8 @@ def main() -> int:
         expected = REVIEW_DESTINATIONS[args.decision]
         if args.to != expected:
             parser.error(f"review decision {args.decision} requires --to {expected}")
+        if args.decision == "C" and state.get("finalDeliverable") != "EDITABLE_FAITHFUL_CLONE_THEN_CREATIVE":
+            parser.error("review decision C requires final deliverable C recorded before REVIEW_GATE")
     elif args.decision is not None:
         parser.error("--decision is only valid when leaving REVIEW_GATE")
     if current == "TEARDOWN_PHASE":
@@ -78,9 +225,17 @@ def main() -> int:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         if manifest.get("status") != "passed" or manifest.get("siteSpec", {}).get("status") != "final":
             parser.error("leaving TEARDOWN_PHASE requires scripts/finalize_teardown.py to pass")
+        if args.to == "FAITHFUL_CLONE" and not state.get("deliveryContractConfirmedForBuild"):
+            parser.error("build work requires an explicitly confirmed final deliverable A, B, or C")
     if args.to == "REVIEW_GATE":
         try:
-            require_nonempty_file(root / "CLONE_REPORT.md", "CLONE_REPORT.md")
+            require_completed_file(root / "CLONE_REPORT.md", "CLONE_REPORT.md")
+            validate_editability_contract(args.workspace.resolve(), root, state)
+        except ValueError as error:
+            parser.error(str(error))
+    if current == "REVIEW_GATE" and args.decision in {"B", "C"}:
+        try:
+            validate_editability_contract(args.workspace.resolve(), root, state)
         except ValueError as error:
             parser.error(str(error))
     if args.to == "CREATIVE_REBUILD":

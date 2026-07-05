@@ -20,6 +20,8 @@ Read `references/clone-modes.md`. Show this preflight before using tools:
 
 ```markdown
 - Outcome:
+- Final deliverable:
+- Editability target:
 - Current phase:
 - Site type:
 - Ownership/authorization:
@@ -29,7 +31,13 @@ Read `references/clone-modes.md`. Show this preflight before using tools:
 - Approximate or excluded scope:
 ```
 
-Ask one path-changing question when intent or ownership is unclear. Use the single flow `TEARDOWN_PHASE -> FAITHFUL_CLONE -> REVIEW_GATE -> CREATIVE_REBUILD`. A teardown-only outcome stops after the first phase. Never silently expand scope.
+Before every build-type reconstruction, ask the ordinary user to choose exactly one final delivery contract; never infer or default it from a user profile:
+
+- A: research/runnable replay only (`RESEARCH_OR_RUNNABLE_REPLAY`, `RUNNABLE_REPLAY`).
+- B: editable faithful clone (`EDITABLE_FAITHFUL_CLONE`, `MAINTAINABLE_SOURCE`).
+- C: editable faithful clone, then Creative after review (`EDITABLE_FAITHFUL_CLONE_THEN_CREATIVE`, `MAINTAINABLE_SOURCE`).
+
+Ask one additional path-changing question when intent or ownership is unclear. Use the single flow `TEARDOWN_PHASE -> FAITHFUL_CLONE -> REVIEW_GATE -> CREATIVE_REBUILD`. A teardown-only outcome stops after the first phase. Editability for B/C is a `FAITHFUL_CLONE` requirement; `CREATIVE_REBUILD` only performs approved post-review content, brand, and feature innovation. Never silently expand scope.
 
 Choose the faithful implementation path from evidence: `SOURCE_ADAPT`, `CLEAN_REBUILD`, or `PRODUCTION_RECOVERY`. Enable recovery only when the user confirms ownership/authorization and maintainable source is unavailable.
 
@@ -40,6 +48,8 @@ Read workspace agent instructions (`AGENTS.md` or `CLAUDE.md`), if present. Let 
 ```text
 python <skill-root>/scripts/init_reconstruction.py <workspace> --url <canonical-url> --authorization <owned|licensed|authorized>
 ```
+
+For build work, also pass the recorded choice with `--final-deliverable A|B|C` and a matching `--outcome`. The initializer refuses build work without that explicit contract. Teardown-only initialization may omit it.
 
 Choose `--teardown-depth minimal` only for a simple non-GPU page: it uses a four-section SITE_SPEC and makes Design DNA recommended rather than blocking. `standard` is the default complete 12-section teardown. Use `deep` for complex rendering or recovery evidence; GPU targets cannot use `minimal`.
 
@@ -104,7 +114,9 @@ python <skill-root>/scripts/generate_asset_manifest.py <workspace>/.gcw/evidence
 
 The generator classifies and deduplicates static resources, proposes deterministic local paths, excludes API noise, and redacts unsafe URLs. It writes `reviewStatus: pending`; confirm reuse rights, purpose, attribution, scope, and paths before changing the status to `confirmed` and running `download_assets.py`. It never downloads or overwrites an existing manifest.
 
-For final clean/creative builds, read `references/runtime-independence.md`. Recovery configuration instead reads `references/recovery-tiers.md` and `references/gates.md` and adds provenance, hashes, replay strategy, route/deploy continuity, Known Gaps, and maintained CI.
+For final maintainable-source and creative builds, read `references/runtime-independence.md`. Recovery configuration instead reads `references/recovery-tiers.md` and `references/gates.md` and adds provenance, hashes, replay strategy, route/deploy continuity, Known Gaps, and maintained CI. Use `MAINTAINABLE_REBUILD` for a recovered maintainable implementation; `EDITABLE_REBUILD` is a migrated legacy alias only.
+
+For B/C, `ARTIFACT_REPLAY` may be built first as an independent oracle but cannot be the final candidate. Before formal review, complete `.gcw/editability-evidence.json` and `.gcw/REPLACE_GUIDE.md`. Prove a maintainable source entrypoint, one controlled content change without editing deployed bundles, and runtime independence. A production-artifact-only replay cannot pass the delivery gate.
 
 ## 5. Verify matched states
 
@@ -115,7 +127,7 @@ node <skill-root>/scripts/capture_compare.mjs --config <capture-scenarios.json> 
 python <skill-root>/scripts/batch_image_diff.py <results-dir> --diff-dir <results-dir>/diff
 ```
 
-Match viewport, DPR, route, pointer, scroll, seed, readiness, and time phase. Inspect screenshots and Diff images. Produce `CLONE_REPORT.md` with subsystem fidelity and Known Gaps. Leave a local `faithful-baseline` checkpoint only when the user permits commits.
+Match viewport, DPR, route, pointer, scroll, seed, readiness, and time phase. Inspect screenshots and Diff images. Complete `CLONE_REPORT.md` with the delivery contract, subsystem fidelity, editability evidence when required, and Known Gaps. Leave a local `faithful-baseline` checkpoint only when the user permits commits.
 
 ## 6. Stop at REVIEW_GATE
 
@@ -125,7 +137,7 @@ Present the baseline, preview, screenshots, Diff, `CLONE_REPORT.md`, and Known G
 - B: baseline accepted; stop.
 - C: baseline accepted for innovation; create `.gcw/CREATIVE_BRIEF.md`, then enter `CREATIVE_REBUILD`.
 
-Use `scripts/advance_workflow.py` to record transitions. Entering `REVIEW_GATE` requires a non-empty `CLONE_REPORT.md`; leaving it requires `--decision A|B|C`, and the selected destination must match the list above. Decision C additionally requires a completed `CREATIVE_BRIEF.md`; the script never creates or fills that proof itself. It refuses to leave teardown until `finalize_teardown.py` has passed.
+Use `scripts/advance_workflow.py` to record transitions. Entering `REVIEW_GATE` requires a completed `CLONE_REPORT.md`; B/C additionally require confirmed editability evidence and reject final strategy `ARTIFACT_REPLAY`. Leaving the gate revalidates the delivery contract, requires `--decision A|B|C`, and the selected destination must match the list above. Decision C is valid only for a pre-recorded final deliverable C and additionally requires a completed `CREATIVE_BRIEF.md`; the script never creates or fills that proof itself. It refuses to leave teardown until `finalize_teardown.py` has passed.
 
 ## 7. Close out honestly
 

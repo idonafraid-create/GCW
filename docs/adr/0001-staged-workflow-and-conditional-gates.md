@@ -22,6 +22,13 @@ TEARDOWN_PHASE -> FAITHFUL_CLONE -> REVIEW_GATE -> CREATIVE_REBUILD
 - Evidence remains in native companion schemas and is summarized, not duplicated, in SITE_SPEC.
 - Runtime independence applies to final clean and creative rebuilds, not teardown itself.
 
+Amendment, 2026-07-05:
+
+- Every build records an explicit A/B/C final-deliverable contract before implementation.
+- Choices B/C make maintainable-source editability a `FAITHFUL_CLONE` gate; it cannot be deferred to `CREATIVE_REBUILD`.
+- `ARTIFACT_REPLAY` is oracle-only for B/C. Authorized recovery uses `MAINTAINABLE_REBUILD` as the final editable strategy; schema-v4 `EDITABLE_REBUILD` is a migrated legacy name.
+- Runtime independence applies to every final `MAINTAINABLE_SOURCE` delivery, including an editable faithful clone that stops before Creative.
+
 ## Consequences
 
 The workflow has one source of truth, phase changes are auditable, and expensive gates apply only when target complexity warrants them. Simple non-GPU pages may opt into the minimal teardown profile while preserving the evidence tree, subsystem fidelity table, and finalization gate.

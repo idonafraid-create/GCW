@@ -241,6 +241,51 @@ def complete_teardown_artifacts(workspace: Path, gpu_required: bool = False) -> 
     (shader / "gpu-decision.json").write_text(json.dumps(decision), encoding="utf-8")
 
 
+def complete_clone_report(workspace: Path) -> None:
+    report = workspace / ".gcw" / "CLONE_REPORT.md"
+    text = report.read_text(encoding="utf-8")
+    report.write_text(text.replace("REQUIRED", "Verified"), encoding="utf-8")
+
+
+def complete_editability_evidence(workspace: Path) -> None:
+    source = workspace / "src"
+    reports = workspace / ".gcw" / "reports"
+    source.mkdir(exist_ok=True)
+    reports.mkdir(exist_ok=True)
+    (source / "main.js").write_text("import './content.js';\n", encoding="utf-8")
+    (source / "content.js").write_text("export const title = 'Original';\n", encoding="utf-8")
+    (reports / "content-change.md").write_text("Controlled source edit rebuilt successfully.\n", encoding="utf-8")
+    (reports / "runtime-independence.md").write_text("Network and build scans passed.\n", encoding="utf-8")
+    replacement_map = workspace / ".gcw" / "REPLACE_GUIDE.md"
+    replacement_map.write_text(
+        "# Content replacement map\n\n| Content | Source path | Field | Validation |\n"
+        "|---|---|---|---|\n| Hero title | src/content.js | title | Rebuild and inspect home |\n",
+        encoding="utf-8",
+    )
+    evidence_path = workspace / ".gcw" / "editability-evidence.json"
+    evidence = {
+        "schemaVersion": 1,
+        "reviewStatus": "confirmed",
+        "maintainableSourceEntrypoint": "src/main.js",
+        "contentReplacementMap": ".gcw/REPLACE_GUIDE.md",
+        "controlledContentChange": {
+            "sourceFile": "src/content.js",
+            "field": "title",
+            "beforeValue": "Original",
+            "afterValue": "Controlled test",
+            "buildCommand": "npm run build",
+            "productionBundlesModified": False,
+            "evidence": [".gcw/reports/content-change.md"],
+        },
+        "runtimeIndependence": {
+            "status": "passed",
+            "evidence": [".gcw/reports/runtime-independence.md"],
+        },
+        "artifactReplayRole": "oracle-only",
+    }
+    evidence_path.write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
+
+
 class ReleaseSmokeTests(unittest.TestCase):
     def test_skill_and_package_contract(self) -> None:
         skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
@@ -279,8 +324,18 @@ class ReleaseSmokeTests(unittest.TestCase):
         self.assertIn("also invoke `web-shader-extractor`", skill)
         self.assertIn("Only after these decisions and calls are complete", skill)
         self.assertIn("If required `design-dna` is unavailable, stop", skill)
+        self.assertIn("never infer or default it from a user profile", skill)
+        self.assertIn("Final deliverable:", skill)
+        self.assertIn("Editability target:", skill)
+        self.assertIn("MAINTAINABLE_REBUILD", skill)
+        for readme in (ROOT / "README.md", ROOT / "README.zh-CN.md"):
+            content = readme.read_text(encoding="utf-8")
+            self.assertIn("Final deliverable", content)
+            self.assertIn("Editability target", content)
+            self.assertIn("MAINTAINABLE_REBUILD", content)
         for asset in (
             "site-spec-template.md", "site-spec-minimal-template.md", "creative-brief-template.md", "asset-manifest.example.json",
+            "clone-report-template.md", "replacement-map-template.md", "editability-evidence.template.json",
             "teardown-manifest.template.json", "evidence-index.template.json", "gpu-decision.template.json",
         ):
             self.assertTrue((ROOT / "assets" / asset).is_file(), asset)
@@ -310,11 +365,14 @@ class ReleaseSmokeTests(unittest.TestCase):
             run(PYTHON, "scripts/init_reconstruction.py", temp, "--url", "https://example.com/")
             state_path = Path(temp) / ".gcw" / "run-state.json"
             state = json.loads(state_path.read_text(encoding="utf-8"))
-            self.assertEqual(state["schemaVersion"], 4)
+            self.assertEqual(state["schemaVersion"], 5)
             self.assertIn("cloneMode", state)
             self.assertEqual(state["permissionBoundary"], "unconfirmed")
             self.assertEqual(state["currentPhase"], "TEARDOWN_PHASE")
             self.assertEqual(state["outcome"], "teardown")
+            self.assertEqual(state["finalDeliverable"], "RESEARCH_OR_RUNNABLE_REPLAY")
+            self.assertEqual(state["editabilityTarget"], "RUNNABLE_REPLAY")
+            self.assertFalse(state["deliveryContractConfirmedForBuild"])
             self.assertEqual(state["teardownDepth"], "standard")
             self.assertEqual(state["reviewDecisions"], [])
             self.assertEqual(state["conditionalGates"]["assetProvenance"], "enable-when-asset-heavy-offline-or-maintained")
@@ -322,6 +380,9 @@ class ReleaseSmokeTests(unittest.TestCase):
             self.assertEqual(state["conditionalGates"]["gpuForensics"], "required-when-canvas-webgl-webgpu-or-shaders-detected")
             gcw = Path(temp) / ".gcw"
             self.assertTrue((gcw / "SITE_SPEC.md").is_file())
+            self.assertTrue((gcw / "CLONE_REPORT.md").is_file())
+            self.assertTrue((gcw / "REPLACE_GUIDE.md").is_file())
+            self.assertTrue((gcw / "editability-evidence.json").is_file())
             self.assertTrue((gcw / "teardown-manifest.json").is_file())
             self.assertTrue((gcw / "evidence" / "evidence-index.json").is_file())
             self.assertTrue((gcw / "evidence" / "screenshots" / "desktop").is_dir())
@@ -350,6 +411,41 @@ class ReleaseSmokeTests(unittest.TestCase):
                 expect=2,
             )
             self.assertIn("requires confirmed authorization", recovery.stderr)
+
+            missing_contract = run(
+                PYTHON, "scripts/init_reconstruction.py", temp,
+                "--url", "https://example.com/", "--outcome", "faithful-clone",
+                expect=2,
+            )
+            self.assertIn("requires --final-deliverable A, B, or C", missing_contract.stderr)
+
+        with tempfile.TemporaryDirectory() as temp:
+            run(
+                PYTHON, "scripts/init_reconstruction.py", temp,
+                "--url", "https://example.com/", "--outcome", "faithful-clone",
+                "--final-deliverable", "B",
+            )
+            state = json.loads((Path(temp) / ".gcw" / "run-state.json").read_text(encoding="utf-8"))
+            self.assertEqual(state["finalDeliverable"], "EDITABLE_FAITHFUL_CLONE")
+            self.assertEqual(state["editabilityTarget"], "MAINTAINABLE_SOURCE")
+            self.assertTrue(state["deliveryContractConfirmedForBuild"])
+            self.assertTrue(state["conditionalGates"]["runtimeIndependence"])
+
+    def test_build_transition_requires_explicit_delivery_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Path(temp)
+            run(PYTHON, "scripts/init_reconstruction.py", temp, "--url", "https://example.com/")
+            complete_teardown_artifacts(workspace)
+            run(PYTHON, "scripts/finalize_teardown.py", temp)
+            blocked = run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "FAITHFUL_CLONE", expect=2)
+            self.assertIn("explicitly confirmed final deliverable", blocked.stderr)
+            run(
+                PYTHON, "scripts/advance_workflow.py", temp,
+                "--to", "FAITHFUL_CLONE", "--final-deliverable", "A",
+            )
+            state = json.loads((workspace / ".gcw" / "run-state.json").read_text(encoding="utf-8"))
+            self.assertTrue(state["deliveryContractConfirmedForBuild"])
+            self.assertEqual(state["deliveryContractHistory"][-1]["choice"], "A")
 
     def test_ci_installer_is_reproducible_and_non_destructive(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -619,7 +715,11 @@ class ReleaseSmokeTests(unittest.TestCase):
 
     def test_workflow_requires_review_gate_before_creative(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
-            run(PYTHON, "scripts/init_reconstruction.py", temp, "--url", "https://example.com/")
+            run(
+                PYTHON, "scripts/init_reconstruction.py", temp,
+                "--url", "https://example.com/", "--outcome", "creative-rebuild",
+                "--final-deliverable", "C",
+            )
             invalid = run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "CREATIVE_REBUILD", expect=2)
             self.assertIn("invalid transition", invalid.stderr)
             incomplete_study = run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "COMPLETE", expect=2)
@@ -632,7 +732,10 @@ class ReleaseSmokeTests(unittest.TestCase):
             run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "FAITHFUL_CLONE")
             missing_report = run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "REVIEW_GATE", expect=2)
             self.assertIn("CLONE_REPORT.md", missing_report.stderr)
-            (Path(temp) / ".gcw" / "CLONE_REPORT.md").write_text("# Clone report\n\nBaseline verified.\n", encoding="utf-8")
+            complete_clone_report(Path(temp))
+            incomplete_editability = run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "REVIEW_GATE", expect=2)
+            self.assertIn("editability-evidence.json reviewStatus must be confirmed", incomplete_editability.stderr)
+            complete_editability_evidence(Path(temp))
             run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "REVIEW_GATE")
             mismatched_decision = run(
                 PYTHON, "scripts/advance_workflow.py", temp,
@@ -669,6 +772,53 @@ Approved screenshots.
             self.assertTrue({"design-dna", "gpu-decision", "site-spec", "site-inventory", "route-map", "source-maps", "interaction-states"}.issubset({entry["kind"] for entry in evidence_index["entries"]}))
             design_entry = next(entry for entry in evidence_index["entries"] if entry["kind"] == "design-dna")
             self.assertEqual(design_entry["schemaContract"], "three-dimension-v1")
+
+    def test_editable_delivery_blocks_artifact_only_replay_and_migrates_legacy_strategy(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Path(temp)
+            run(
+                PYTHON, "scripts/init_reconstruction.py", temp,
+                "--url", "https://example.com/", "--outcome", "faithful-clone",
+                "--final-deliverable", "B",
+            )
+            complete_teardown_artifacts(workspace)
+            run(PYTHON, "scripts/finalize_teardown.py", temp)
+            run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "FAITHFUL_CLONE")
+            complete_clone_report(workspace)
+            complete_editability_evidence(workspace)
+
+            state_path = workspace / ".gcw" / "run-state.json"
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            state["schemaVersion"] = 4
+            state["recoveryStrategy"] = "ARTIFACT_REPLAY"
+            state_path.write_text(json.dumps(state), encoding="utf-8")
+            blocked = run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "REVIEW_GATE", expect=2)
+            self.assertIn("ARTIFACT_REPLAY is oracle-only", blocked.stderr)
+
+            state["recoveryStrategy"] = "EDITABLE_REBUILD"
+            state_path.write_text(json.dumps(state), encoding="utf-8")
+            editability_path = workspace / ".gcw" / "editability-evidence.json"
+            editability = json.loads(editability_path.read_text(encoding="utf-8"))
+            editability["runtimeIndependence"]["status"] = "pending"
+            editability_path.write_text(json.dumps(editability), encoding="utf-8")
+            blocked_runtime = run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "REVIEW_GATE", expect=2)
+            self.assertIn("runtimeIndependence.status must be passed", blocked_runtime.stderr)
+
+            editability["runtimeIndependence"]["status"] = "passed"
+            editability_path.write_text(json.dumps(editability), encoding="utf-8")
+            run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "REVIEW_GATE")
+            migrated = json.loads(state_path.read_text(encoding="utf-8"))
+            self.assertEqual(migrated["schemaVersion"], 5)
+            self.assertEqual(migrated["recoveryStrategy"], "MAINTAINABLE_REBUILD")
+            self.assertEqual(migrated["stateMigrations"][-1]["from"], "EDITABLE_REBUILD")
+
+            migrated["recoveryStrategy"] = "ARTIFACT_REPLAY"
+            state_path.write_text(json.dumps(migrated), encoding="utf-8")
+            blocked_closeout = run(
+                PYTHON, "scripts/advance_workflow.py", temp,
+                "--to", "COMPLETE", "--decision", "B", expect=2,
+            )
+            self.assertIn("ARTIFACT_REPLAY is oracle-only", blocked_closeout.stderr)
 
     def test_gpu_teardown_requires_target_lock_and_replay_ready(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

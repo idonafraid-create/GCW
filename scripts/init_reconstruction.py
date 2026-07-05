@@ -19,6 +19,12 @@ EVIDENCE_DIRS = (
     "web-shader-extractor/evidence",
 )
 
+DELIVERY_CONTRACTS = {
+    "A": ("RESEARCH_OR_RUNNABLE_REPLAY", "RUNNABLE_REPLAY"),
+    "B": ("EDITABLE_FAITHFUL_CLONE", "MAINTAINABLE_SOURCE"),
+    "C": ("EDITABLE_FAITHFUL_CLONE_THEN_CREATIVE", "MAINTAINABLE_SOURCE"),
+}
+
 
 def write_if_missing(path: Path, content: str) -> bool:
     if path.exists():
@@ -35,6 +41,7 @@ def main() -> int:
     parser.add_argument("--route", action="append", default=[])
     parser.add_argument("--authorization", choices=("unconfirmed", "owned", "licensed", "authorized"), default="unconfirmed")
     parser.add_argument("--outcome", choices=("teardown", "faithful-clone", "creative-rebuild"), default="teardown")
+    parser.add_argument("--final-deliverable", choices=tuple(DELIVERY_CONTRACTS))
     parser.add_argument("--site-type", default="unknown")
     parser.add_argument("--source-availability", choices=("unknown", "available", "unavailable", "damaged"), default="unknown")
     parser.add_argument("--baseline-scope", default="to-confirm")
@@ -52,6 +59,17 @@ def main() -> int:
         args.authorization == "unconfirmed" or args.source_availability not in {"unavailable", "damaged"}
     ):
         parser.error("PRODUCTION_RECOVERY requires confirmed authorization and unavailable or damaged source")
+    build_requested = args.outcome != "teardown" or bool(args.implementation_path)
+    if build_requested and args.final_deliverable is None:
+        parser.error("build work requires --final-deliverable A, B, or C after asking the user")
+    delivery_choice = args.final_deliverable or "A"
+    if delivery_choice == "B" and args.outcome != "faithful-clone":
+        parser.error("final deliverable B requires --outcome faithful-clone")
+    if delivery_choice == "C" and args.outcome != "creative-rebuild":
+        parser.error("final deliverable C requires --outcome creative-rebuild")
+    if delivery_choice == "A" and args.outcome == "creative-rebuild":
+        parser.error("creative-rebuild requires final deliverable C")
+    final_deliverable, editability_target = DELIVERY_CONTRACTS[delivery_choice]
     parsed = urlparse(args.url)
 
     workspace = args.workspace.resolve()
@@ -67,12 +85,15 @@ def main() -> int:
 
     routes = args.route or [parsed.path or "/"]
     state = {
-        "schemaVersion": 4,
+        "schemaVersion": 5,
         "skill": "gcw",
         "sourceUrl": args.url,
         "permissionBoundary": args.authorization,
         "routes": routes,
         "outcome": args.outcome,
+        "finalDeliverable": final_deliverable,
+        "editabilityTarget": editability_target,
+        "deliveryContractConfirmedForBuild": args.final_deliverable is not None,
         "currentPhase": "TEARDOWN_PHASE",
         "siteType": args.site_type,
         "ownershipAuthorization": args.authorization,
@@ -84,7 +105,7 @@ def main() -> int:
         "conditionalGates": {
             "designDna": args.teardown_depth != "minimal",
             "gpuForensics": "required-when-canvas-webgl-webgpu-or-shaders-detected",
-            "runtimeIndependence": args.implementation_path == "CLEAN_REBUILD" or args.outcome == "creative-rebuild",
+            "runtimeIndependence": editability_target == "MAINTAINABLE_SOURCE" or args.implementation_path == "CLEAN_REBUILD",
             "assetProvenance": "enable-when-asset-heavy-offline-or-maintained",
             "recovery": args.implementation_path == "PRODUCTION_RECOVERY",
         },
@@ -119,6 +140,9 @@ def main() -> int:
     files = {
         root / "run-state.json": json.dumps(state, indent=2) + "\n",
         root / "SITE_SPEC.md": (skill_root / "assets" / ("site-spec-minimal-template.md" if args.teardown_depth == "minimal" else "site-spec-template.md")).read_text(encoding="utf-8"),
+        root / "CLONE_REPORT.md": (skill_root / "assets" / "clone-report-template.md").read_text(encoding="utf-8"),
+        root / "REPLACE_GUIDE.md": (skill_root / "assets" / "replacement-map-template.md").read_text(encoding="utf-8"),
+        root / "editability-evidence.json": (skill_root / "assets" / "editability-evidence.template.json").read_text(encoding="utf-8"),
         root / "teardown-manifest.json": (Path(__file__).resolve().parent.parent / "assets" / "teardown-manifest.template.json").read_text(encoding="utf-8"),
         evidence / "evidence-index.json": (Path(__file__).resolve().parent.parent / "assets" / "evidence-index.template.json").read_text(encoding="utf-8"),
         evidence / "web-shader-extractor" / "gpu-decision.json": (Path(__file__).resolve().parent.parent / "assets" / "gpu-decision.template.json").read_text(encoding="utf-8"),

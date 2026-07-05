@@ -9,6 +9,17 @@
 
 Initialize SITE_SPEC as a draft and finalize it only after the complete teardown sequence. Standard and deep teardown keep all 12 numbered sections. The opt-in minimal profile is limited to simple non-GPU pages and keeps sections 1, 5, 9, and 12. Remove every `REQUIRED` placeholder and write `N/A` only with supporting evidence.
 
+## Delivery-contract state
+
+`run-state.json` schema version 5 persists two required preflight fields:
+
+- `finalDeliverable`: `RESEARCH_OR_RUNNABLE_REPLAY`, `EDITABLE_FAITHFUL_CLONE`, or `EDITABLE_FAITHFUL_CLONE_THEN_CREATIVE`.
+- `editabilityTarget`: `RUNNABLE_REPLAY` for choice A or `MAINTAINABLE_SOURCE` for choices B/C.
+
+New build initialization requires `--final-deliverable A|B|C`. Teardown-only initialization records the current research/replay result as choice A but sets `deliveryContractConfirmedForBuild: false`, so a later transition into `FAITHFUL_CLONE` must still record an explicit user choice. A schema-v4 state without these fields migrates to `UNCONFIRMED` and the same unconfirmed flag. Pass `--final-deliverable A|B|C` to `advance_workflow.py` before `REVIEW_GATE` to confirm or update a migrated contract. The legacy recovery strategy `EDITABLE_REBUILD` migrates to `MAINTAINABLE_REBUILD` with a timestamped `stateMigrations` entry.
+
+SITE_SPEC section 1 must state both delivery fields. Section 10 must turn `MAINTAINABLE_SOURCE` into acceptance criteria rather than deferring editability to `CREATIVE_REBUILD`.
+
 ## Fixed evidence
 
 Every task preserves:
@@ -58,6 +69,18 @@ When reconnaissance confirms no qualifying GPU surface, set the decision to `not
 ```
 
 `detect_interaction_states.mjs` writes `reviewStatus: pending`. Generated evidence must be reviewed, false positives removed, missing script-driven states added, and the status changed to `confirmed` before teardown finalization. Legacy manually authored schema-v1 files without `reviewStatus` remain valid.
+
+## Editability evidence schema
+
+For `MAINTAINABLE_SOURCE`, `.gcw/editability-evidence.json` schema version 1 is a formal `FAITHFUL_CLONE` gate. Before entering `REVIEW_GATE`, set `reviewStatus` to `confirmed` and provide:
+
+- a workspace-relative maintainable source entrypoint outside production output directories;
+- a completed `.gcw/REPLACE_GUIDE.md` content replacement map;
+- a controlled content change with source file, field, distinct before/after values, build command, proof paths, and `productionBundlesModified: false`;
+- `runtimeIndependence.status: passed` with evidence paths;
+- `artifactReplayRole` set to `not-used` or `oracle-only`.
+
+All referenced files must exist inside the workspace. `ARTIFACT_REPLAY` in `run-state.json.recoveryStrategy` blocks this gate. Under `PRODUCTION_RECOVERY`, the final strategy must be `MAINTAINABLE_REBUILD`.
 
 ## SITE_SPEC synthesis rules
 

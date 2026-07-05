@@ -8,6 +8,8 @@ Serve exact public HTML, CSS, JavaScript and assets when deployed artifacts are 
 
 Use it as an independent regression oracle. Do not call minified deployment artifacts the original authoring source.
 
+For a `MAINTAINABLE_SOURCE` target, this strategy is oracle-only and cannot pass the formal delivery gate by itself.
+
 Limits:
 
 - Original source names, comments, history and server logic may be unavailable.
@@ -20,11 +22,13 @@ Reconstruct the active rendering pipeline from recovered shaders, resources, sta
 
 Do not begin from screenshots alone when source maps, runtime captures or deployed code are available.
 
-## EDITABLE_REBUILD
+## MAINTAINABLE_REBUILD
 
 Convert verified behavior into maintainable components. Keep the best available replay or captured baseline as an oracle and compare after each projectization step.
 
-An editable rebuild is complete only when it passes the desktop, mobile, temporal, interaction and route scenarios promised in preflight.
+A maintainable rebuild is complete only when it passes the desktop, mobile, temporal, interaction and route scenarios promised in preflight, plus the editability and runtime-independence gates.
+
+`EDITABLE_REBUILD` is the deprecated schema-v4 name for this strategy. GCW schema-v5 workflow transitions migrate that exact legacy value to `MAINTAINABLE_REBUILD` and append a `stateMigrations` record. Do not use the old name in new state. This rename keeps the recovery strategy distinct from the post-review `CREATIVE_REBUILD` phase.
 
 ## Selection rule
 

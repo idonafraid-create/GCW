@@ -4,7 +4,7 @@ Status: DRAFT
 
 ## 1. Document status, outcome, scope, and authorization
 
-<!-- REQUIRED: state the outcome, baseline scope, authorization, source availability, and exclusions. -->
+<!-- REQUIRED: state the outcome, Final deliverable, Editability target, baseline scope, authorization, source availability, and exclusions. -->
 
 ## 2. Pages, routes, page families, and information architecture
 
@@ -44,7 +44,7 @@ Represent every implementation-critical conclusion in this table.
 
 ## 10. Implementation path, order, dependencies, and acceptance criteria
 
-<!-- REQUIRED: define SOURCE_ADAPT, CLEAN_REBUILD, or authorized PRODUCTION_RECOVERY work in dependency order. -->
+<!-- REQUIRED: define SOURCE_ADAPT, CLEAN_REBUILD, or authorized PRODUCTION_RECOVERY work in dependency order. For MAINTAINABLE_SOURCE, identify the maintainable source entrypoint, content replacement map, controlled content-change proof, and runtime-independence acceptance. -->
 
 ## 11. Transferable design and engineering methods
 

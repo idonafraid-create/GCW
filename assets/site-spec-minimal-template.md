@@ -4,7 +4,7 @@ Status: DRAFT
 
 ## 1. Status, scope, and authorization
 
-<!-- REQUIRED: record the authorized target and exact single-page scope. -->
+<!-- REQUIRED: record the authorized target, Final deliverable, Editability target, and exact single-page scope. -->
 
 ## 5. Components and interaction states
 
