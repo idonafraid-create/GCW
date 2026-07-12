@@ -195,10 +195,8 @@ def main() -> int:
 
     design_path = root / "evidence" / "design-dna" / "design-dna.json"
     required_design_keys = {"meta", "design_system", "design_style", "visual_effects"}
-    design = load_json(design_path, root) if design_path.is_file() else None
-    if teardown_depth != "minimal" and design is None:
-        raise ValueError(f"missing required artifact: {design_path}")
-    if design is not None and (not required_design_keys.issubset(design) or any(not design[key] for key in required_design_keys)):
+    design = load_json(design_path, root)
+    if not required_design_keys.issubset(design) or any(not design[key] for key in required_design_keys):
         raise ValueError("design-dna.json contract three-dimension-v1 requires non-empty meta, design_system, design_style, and visual_effects")
 
     shader_root = root / "evidence" / "web-shader-extractor"
@@ -212,10 +210,9 @@ def main() -> int:
         *(artifact_entry(root, path, f"network-evidence-{index}", "gcw") for index, path in enumerate(network_evidence, 1)),
         artifact_entry(root, decision_path, "gpu-decision", "gcw"),
     ]
-    if design is not None:
-        design_entry = artifact_entry(root, design_path, "design-dna", "design-dna")
-        design_entry["schemaContract"] = "three-dimension-v1"
-        indexed.append(design_entry)
+    design_entry = artifact_entry(root, design_path, "design-dna", "design-dna")
+    design_entry["schemaContract"] = "three-dimension-v1"
+    indexed.append(design_entry)
     if gpu_decision == "not-applicable":
         if not decision.get("checkedSurfaces") or not decision.get("detectionEvidence"):
             raise ValueError("GPU N/A requires checkedSurfaces and detectionEvidence")
@@ -273,7 +270,7 @@ def main() -> int:
 
     manifest.update({"status": "passed", "finalizedAt": finalized_at})
     site_spec_manifest.update({"status": "final"})
-    design_manifest.update({"required": teardown_depth != "minimal", "status": "passed" if design is not None else "recommended-not-provided"})
+    design_manifest.update({"required": True, "status": "passed"})
     gpu_manifest.update({"decision": gpu_decision, "status": gpu_status})
 
     state["analysisGates"] = {"designDna": "complete", "gpuForensics": gpu_status, "teardown": "passed"}

@@ -13,6 +13,8 @@ Find evidence before implementation. Make it run before refactoring. Compare bef
 - Exclude private/authenticated content unless explicitly authorized. Never bypass access controls or handle credentials.
 - Check code, font, image, model, and brand rights separately. Label claims `SOURCE`, `PARTIAL`, or `GUESS`.
 - Treat deployed bundles as evidence, not original authoring source.
+- Treat this skill as the workflow authority when the user explicitly selects GCW. A question about an adjacent skill is not an instruction to invoke it. Do not add or substitute skills unless this file requires them or the user explicitly requests them.
+- `design-dna` is mandatory for every teardown. `web-shader-extractor` is additionally mandatory when evidence detects Canvas, WebGL, WebGPU, or shaders. No other design, URL-to-code, or image-to-code skill satisfies either companion gate.
 
 ## 1. Route the workflow visibly
 
@@ -51,9 +53,11 @@ python <skill-root>/scripts/init_reconstruction.py <workspace> --url <canonical-
 
 For build work, also pass the recorded choice with `--final-deliverable A|B|C` and a matching `--outcome`. The initializer refuses build work without that explicit contract. Teardown-only initialization may omit it.
 
-Choose `--teardown-depth minimal` only for a simple non-GPU page: it uses a four-section SITE_SPEC and makes Design DNA recommended rather than blocking. `standard` is the default complete 12-section teardown. Use `deep` for complex rendering or recovery evidence; GPU targets cannot use `minimal`.
+Choose `--teardown-depth minimal` only for a simple non-GPU page: it uses a four-section SITE_SPEC but still requires Design DNA. `standard` is the default complete 12-section teardown. Use `deep` for complex rendering or recovery evidence; GPU targets cannot use `minimal`.
 
 Read `references/site-spec.md`. Create `.gcw/SITE_SPEC.md` as a draft; do not finalize it until teardown evidence and required companion-skill results have been integrated. Mark absent capabilities `N/A`. Represent every implementation-critical conclusion in the section 9 subsystem table with fidelity and truth labels; never hide differences behind one percentage.
+
+For a URL-only `CLEAN_REBUILD`, do not create or modify candidate implementation source before `finalize_teardown.py` passes. Capture the full public runtime first: desktop/mobile geometry, decoded assets and fonts, critical interactions, stable loading states, and every required companion result. Existing candidate code does not waive this gate; quarantine it until teardown is final.
 
 ## 3. Gather real evidence
 
@@ -77,7 +81,9 @@ The detector records observed `:hover`, `:focus`/`:focus-visible`, and common `a
 
 Verify routes, breakpoints, DOM roots, overlays, scroll containers, input states, loading/stable states, GPU/media/workers/iframes, and external data manually. Cross-origin CSS, pseudo-element-only changes, canvas state, and multi-step interactions remain manual discovery scope.
 
-During every standard or deep `TEARDOWN_PHASE`, invoke `design-dna` and preserve its complete JSON at `.gcw/evidence/design-dna/design-dna.json`. Minimal teardown recommends the same evidence but does not block finalization when it is absent. Summarize implementation-critical findings in `SITE_SPEC.md`; do not copy the sibling schema into a second GCW document. If required `design-dna` is unavailable, stop and tell the user what must be installed; do not substitute an unstructured guess.
+Before using a source screenshot as a baseline, prove readiness and repeat the capture. If repeated captures differ, fix readiness/seed/time controls or classify the phase-sensitive region and compare it separately. Never build against a loading, decoding, lazy, or transitional frame merely because it is the first screenshot available.
+
+During every `TEARDOWN_PHASE`, invoke `design-dna` and preserve its complete JSON at `.gcw/evidence/design-dna/design-dna.json`, including minimal teardown and study-only work. Summarize implementation-critical findings in `SITE_SPEC.md`; do not copy the sibling schema into a second GCW document. If `design-dna` is unavailable, stop and tell the user what must be installed; do not substitute an unstructured guess.
 
 If Canvas, WebGL, WebGPU, or shaders are detected, also invoke `web-shader-extractor`. Preserve its native artifacts under `.gcw/evidence/web-shader-extractor/` and reach `TARGET_LOCKED` plus `REPLAY_READY`; teardown does not require Raw Replay or QA Report. If the required companion is unavailable, stop before finalization. When reconnaissance confirms no qualifying GPU surface, set `gpu-decision.json` to `not-applicable` and reference the supporting inventory evidence.
 
@@ -128,6 +134,10 @@ python <skill-root>/scripts/batch_image_diff.py <results-dir> --diff-dir <result
 ```
 
 Match viewport, DPR, route, pointer, scroll, seed, readiness, and time phase. Inspect screenshots and Diff images. Complete `CLONE_REPORT.md` with the delivery contract, subsystem fidelity, editability evidence when required, and Known Gaps. Leave a local `faithful-baseline` checkpoint only when the user permits commits.
+
+Before entering `REVIEW_GATE`, complete `.gcw/quality-gate.json`. It must confirm a stable source baseline, passed desktop/mobile/key-state verification, and no open P0/P1/P2 issue. A failed visual or interaction gate keeps the task in `FAITHFUL_CLONE`: continue fixing unless the user explicitly pauses or terminates the work. A status report by itself is not a stopping condition.
+
+For large or multi-session work, read `references/continuity.md`. Keep one compact `.gcw/PROGRESS.md`, validate persisted state before review/resume/handoff, and use only user-authorized local Git checkpoints. Do not create per-tweak reports or automatic commits.
 
 ## 6. Stop at REVIEW_GATE
 

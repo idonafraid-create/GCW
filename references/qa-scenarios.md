@@ -2,6 +2,10 @@
 
 Record fixed viewport, DPR, browser/backend, theme, route, crop, readiness, pointer, scroll, seed, and time phase in capture JSON.
 
+Before candidate implementation, capture every critical source scenario twice after fonts and visible images decode and the documented readiness condition passes. If the pair is not stable, correct the wait/seed/virtual-time inputs or record the unstable region as phase-sensitive and exclude it from static global acceptance. Preserve both captures or their Diff as `quality-gate.json` evidence. One early loading or transition frame is never an acceptable baseline.
+
+For an internal GCW dogfood run, copy `assets/dogfood-record.template.md` into the case workspace before teardown. Record timing, human intervention, discovery false positives/misses, verification results, and the roadmap decision. This is an internal quality record, not an end-user deliverable.
+
 | Phase | Required verification |
 |---|---|
 | `TEARDOWN_PHASE` | Evidence for every claim, mandatory `design-dna`, and completed or evidence-backed `N/A` GPU analysis |

@@ -30,6 +30,11 @@ Amendment, 2026-07-05:
 - Runtime independence applies to every final `MAINTAINABLE_SOURCE` delivery, including an editable faithful clone that stops before Creative.
 - Choice B is a durable accepted checkpoint. An explicit later decision C may resume `CREATIVE_REBUILD` from completed B after revalidating the B review record, editability evidence, and Creative Brief; choice A cannot resume this way.
 
+Amendment, 2026-07-12:
+
+- Design DNA is mandatory for every teardown depth, including minimal and study-only work.
+- Web Shader Extractor remains conditional on detected Canvas, WebGL, WebGPU, or shader evidence and cannot be replaced by unrelated design or code-generation skills.
+
 ## Consequences
 
 The workflow has one source of truth, phase changes are auditable, and expensive gates apply only when target complexity warrants them. Simple non-GPU pages may opt into the minimal teardown profile while preserving the evidence tree, subsystem fidelity table, and finalization gate.

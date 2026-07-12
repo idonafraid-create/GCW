@@ -140,6 +140,43 @@ def require_evidence_files(workspace: Path, value: object, label: str) -> None:
         require_project_file(workspace, item, f"{label}[{index}]")
 
 
+def validate_quality_gate(workspace: Path, root: Path) -> None:
+    quality_path = root / "quality-gate.json"
+    if not quality_path.is_file():
+        raise ValueError(
+            f"quality-gate.json is required before REVIEW_GATE; copy assets/quality-gate.template.json to {quality_path} and complete it"
+        )
+    try:
+        quality = json.loads(require_nonempty_file(quality_path, "quality-gate.json"))
+    except json.JSONDecodeError as error:
+        raise ValueError(f"invalid quality-gate.json: {error}") from error
+    if not isinstance(quality, dict):
+        raise ValueError("quality-gate.json must contain a JSON object")
+    if quality.get("schemaVersion") != 1:
+        raise ValueError("quality-gate.json schemaVersion must be 1")
+    if quality.get("reviewStatus") != "confirmed":
+        raise ValueError("quality-gate.json reviewStatus must be confirmed")
+    for field in ("stableSourceBaseline", "verification"):
+        item = quality.get(field)
+        if not isinstance(item, dict) or item.get("status") != "passed":
+            raise ValueError(f"quality-gate.json {field}.status must be passed")
+        require_evidence_files(workspace, item.get("evidence"), f"quality-gate.json {field}.evidence")
+    issues = quality.get("openIssues")
+    if not isinstance(issues, list):
+        raise ValueError("quality-gate.json openIssues must be an array")
+    for index, issue in enumerate(issues):
+        if not isinstance(issue, dict):
+            raise ValueError(f"quality-gate.json openIssues[{index}] must be an object")
+        severity = issue.get("severity")
+        status = issue.get("status")
+        if severity not in {"P0", "P1", "P2", "P3"}:
+            raise ValueError(f"quality-gate.json openIssues[{index}].severity must be P0, P1, P2, or P3")
+        if status not in {"open", "resolved"}:
+            raise ValueError(f"quality-gate.json openIssues[{index}].status must be open or resolved")
+        if status == "open" and severity in {"P0", "P1", "P2"}:
+            raise ValueError(f"quality-gate.json blocks REVIEW_GATE with open {severity}: issue {index}")
+
+
 def validate_editability_contract(workspace: Path, root: Path, state: dict) -> None:
     if state.get("editabilityTarget") != "MAINTAINABLE_SOURCE":
         return
@@ -298,6 +335,7 @@ def main() -> int:
         try:
             validate_delivery_contract(state, require_build_confirmation=True)
             require_completed_file(root / "CLONE_REPORT.md", "CLONE_REPORT.md")
+            validate_quality_gate(args.workspace.resolve(), root)
             validate_editability_contract(args.workspace.resolve(), root, state)
         except ValueError as error:
             parser.error(str(error))

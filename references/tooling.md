@@ -12,6 +12,7 @@ Use automation for deterministic collection and transformation. Use browser insp
 | `batch_image_diff.py` | Compare every `*.source.png`/`*.candidate.png` pair | JSON, Markdown and diff images |
 | `route_smoke.py` | Verify public preview routes respond and optionally contain text | JSON route report |
 | `generate_asset_manifest.py` | Draft a review-gated static asset manifest from inventory | `.gcw/asset-manifest.json` |
+| `validate_workspace_state.py` | Check persisted phase, teardown, companion, and formal-review consistency before resume/review/handoff | JSON pass/fail report |
 | `blender_replace_text.py` | Create replacement 3D text matching reference bounds | GLB/GLTF model |
 | `install_ci.py` | Install a self-contained GitHub visual-regression harness | `.gcw/` tools and workflow |
 | `check_runtime_independence.py` | Reject source-origin URLs in network evidence and final text build artifacts | JSON gate report |
@@ -25,9 +26,9 @@ Use automation for deterministic collection and transformation. Use browser insp
 - A Playwright Chromium browser, or set `browserExecutable`/`GCW_BROWSER_EXECUTABLE` to an installed Chrome/Edge executable
 - Blender 4.x only for 3D word replacement
 
-Run `npm install`, `npm run install:browser` and `npm run check` from the GCW repository to verify the shared runtime before a recovery. If Blender is installed outside `PATH`, set `GCW_BLENDER_EXECUTABLE` to its full executable path.
+Run `npm install`, `npm run install:browser` and `npm run check` from the GCW repository before teardown. `npm run check` requires `design-dna` for every teardown depth. Install it under the agent skill root as `.agent/skills/design-dna`, then rerun the same command. For a Canvas, WebGL, WebGPU, or shader target, install `web-shader-extractor` under `.agent/skills/web-shader-extractor` and run `npm run check:gpu`. `npm run check:base` validates only the shared runtime for this repository's CI. If Blender is installed outside `PATH`, set `GCW_BLENDER_EXECUTABLE` to its full executable path.
 
-The environment report separates base runtime `passed` from companion `teardownReady` and `teardownRequirements`. Standard and deep work requires teardown readiness; a green base-runtime result does not override it.
+The environment report has `base`, `teardown`, and `gpu` profiles. A teardown profile requires Design DNA; a GPU profile additionally requires Web Shader Extractor. A green base profile never authorizes teardown.
 
 The installed CI workflow assumes Vite-style `npm run build` and `npm run preview` scripts. Adapt those two steps when the target project uses another build or preview command.
 

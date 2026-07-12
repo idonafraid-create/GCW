@@ -1,6 +1,21 @@
 # Changelog
 
-## Unreleased
+## 1.5.0 - 2026-07-12
+
+### Added
+
+- Formal review now requires a confirmed quality gate proving stable source baselines, passed desktop/mobile/key-state verification, and no open P0/P1/P2.
+- Large or multi-session reconstructions have a compact progress template, resume protocol, and workspace-state validator.
+- Internal dogfood runs have a timing, discovery-quality, and verification record template.
+
+### Changed
+
+- Design DNA is now mandatory for every teardown depth, including `minimal`.
+- URL-only clean rebuilds may not begin candidate implementation before finalized teardown evidence, and unrelated skills cannot replace mandatory Design DNA or conditionally required Web Shader Extractor evidence.
+- Failed visual or interaction QA now explicitly keeps work in `FAITHFUL_CLONE` until fixed or the user pauses/terminates it.
+- Environment checks now use `base`, `teardown`, and `gpu` profiles: `npm run check` validates teardown readiness including mandatory Design DNA, `npm run check:gpu` additionally requires Web Shader Extractor, and the Python probe enforces 3.10+.
+
+Full diff: `v1.4.0..v1.5.0`
 
 ## 1.4.0 - 2026-07-05
 

@@ -247,6 +247,27 @@ def complete_clone_report(workspace: Path) -> None:
     report.write_text(text.replace("REQUIRED", "Verified"), encoding="utf-8")
 
 
+def complete_quality_gate(workspace: Path, *, issue: dict | None = None) -> None:
+    reports = workspace / ".gcw" / "reports"
+    reports.mkdir(exist_ok=True)
+    (reports / "source-baseline.md").write_text("Repeated ready-state source captures verified.\n", encoding="utf-8")
+    (reports / "visual-verification.md").write_text("Desktop, mobile, and key states passed.\n", encoding="utf-8")
+    quality = {
+        "schemaVersion": 1,
+        "reviewStatus": "confirmed",
+        "stableSourceBaseline": {
+            "status": "passed",
+            "evidence": [".gcw/reports/source-baseline.md"],
+        },
+        "verification": {
+            "status": "passed",
+            "evidence": [".gcw/reports/visual-verification.md"],
+        },
+        "openIssues": [issue] if issue else [],
+    }
+    (workspace / ".gcw" / "quality-gate.json").write_text(json.dumps(quality, indent=2) + "\n", encoding="utf-8")
+
+
 def complete_editability_evidence(workspace: Path) -> None:
     source = workspace / "src"
     reports = workspace / ".gcw" / "reports"
@@ -315,6 +336,7 @@ def prepare_editable_review(workspace: Path) -> None:
     run(PYTHON, "scripts/finalize_teardown.py", str(workspace))
     run(PYTHON, "scripts/advance_workflow.py", str(workspace), "--to", "FAITHFUL_CLONE")
     complete_clone_report(workspace)
+    complete_quality_gate(workspace)
     complete_editability_evidence(workspace)
     run(PYTHON, "scripts/advance_workflow.py", str(workspace), "--to", "REVIEW_GATE")
 
@@ -340,7 +362,7 @@ class ReleaseSmokeTests(unittest.TestCase):
         self.assertEqual(package["version"], lock["version"])
         self.assertEqual(package["dependencies"]["playwright"], harness["dependencies"]["playwright"])
         self.assertEqual(harness["dependencies"]["playwright"], harness_lock["packages"]["node_modules/playwright"]["version"])
-        self.assertEqual(package["version"], "1.4.0")
+        self.assertEqual(package["version"], "1.5.0")
 
         flow = "TEARDOWN_PHASE -> FAITHFUL_CLONE -> REVIEW_GATE -> CREATIVE_REBUILD"
         self.assertIn(flow, (ROOT / "README.md").read_text(encoding="utf-8"))
@@ -353,10 +375,12 @@ class ReleaseSmokeTests(unittest.TestCase):
         self.assertIn("GCW 就是 Gao Copy Website。对，名字就这么直白。", (ROOT / "README.zh-CN.md").read_text(encoding="utf-8"))
         self.assertIn("SITE_SPEC.md", skill)
         self.assertIn("Stop at REVIEW_GATE", skill)
-        self.assertIn("During every standard or deep `TEARDOWN_PHASE`, invoke `design-dna`", skill)
+        self.assertIn("During every `TEARDOWN_PHASE`, invoke `design-dna`", skill)
         self.assertIn("also invoke `web-shader-extractor`", skill)
+        self.assertIn("No other design, URL-to-code, or image-to-code skill satisfies either companion gate", skill)
+        self.assertIn("A status report by itself is not a stopping condition", skill)
         self.assertIn("Only after these decisions and calls are complete", skill)
-        self.assertIn("If required `design-dna` is unavailable, stop", skill)
+        self.assertIn("If `design-dna` is unavailable, stop", skill)
         self.assertIn("never infer or default it from a user profile", skill)
         self.assertIn("Final deliverable:", skill)
         self.assertIn("Editability target:", skill)
@@ -372,7 +396,8 @@ class ReleaseSmokeTests(unittest.TestCase):
         for asset in (
             "site-spec-template.md", "site-spec-minimal-template.md", "creative-brief-template.md", "asset-manifest.example.json",
             "clone-report-template.md", "replacement-map-template.md", "editability-evidence.template.json",
-            "teardown-manifest.template.json", "evidence-index.template.json", "gpu-decision.template.json",
+            "teardown-manifest.template.json", "evidence-index.template.json", "gpu-decision.template.json", "dogfood-record.template.md",
+            "quality-gate.template.json", "progress-template.md",
         ):
             self.assertTrue((ROOT / "assets" / asset).is_file(), asset)
 
@@ -391,10 +416,20 @@ class ReleaseSmokeTests(unittest.TestCase):
         self.assertIn("os: [ubuntu-latest, windows-latest, macos-latest]", project_ci)
         self.assertIn("runner.os == 'macOS'", project_ci)
 
-        environment = json.loads(run(NODE, "scripts/check_environment.mjs").stdout)
-        self.assertIn("teardownReady", environment)
+        with tempfile.TemporaryDirectory() as skills:
+            for name in ("design-dna", "web-shader-extractor"):
+                stub = Path(skills) / name
+                stub.mkdir()
+                (stub / "SKILL.md").write_text("# companion stub for hermetic environment checks\n", encoding="utf-8")
+            environment = json.loads(
+                run(NODE, "scripts/check_environment.mjs", "--profile", "teardown", env={"GCW_SKILLS_ROOT": skills}).stdout
+            )
+        self.assertEqual(environment["profile"], "teardown")
+        self.assertTrue(environment["teardownReady"])
+        self.assertTrue(environment["gpuTeardownReady"])
+        self.assertIn("version", environment["required"]["python"])
         self.assertIn("teardownRequirements", environment)
-        self.assertNotIn("companionSkills", environment["optional"])
+        self.assertIn("designDna", environment["teardownRequirements"])
 
     def test_init_is_non_destructive_and_rejects_secret_urls(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -419,6 +454,7 @@ class ReleaseSmokeTests(unittest.TestCase):
             self.assertTrue((gcw / "CLONE_REPORT.md").is_file())
             self.assertTrue((gcw / "REPLACE_GUIDE.md").is_file())
             self.assertTrue((gcw / "editability-evidence.json").is_file())
+            self.assertTrue((gcw / "quality-gate.json").is_file())
             self.assertTrue((gcw / "teardown-manifest.json").is_file())
             self.assertTrue((gcw / "evidence" / "evidence-index.json").is_file())
             self.assertTrue((gcw / "evidence" / "screenshots" / "desktop").is_dir())
@@ -769,6 +805,9 @@ class ReleaseSmokeTests(unittest.TestCase):
             missing_report = run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "REVIEW_GATE", expect=2)
             self.assertIn("CLONE_REPORT.md", missing_report.stderr)
             complete_clone_report(Path(temp))
+            missing_quality = run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "REVIEW_GATE", expect=2)
+            self.assertIn("quality-gate.json reviewStatus must be confirmed", missing_quality.stderr)
+            complete_quality_gate(Path(temp))
             incomplete_editability = run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "REVIEW_GATE", expect=2)
             self.assertIn("editability-evidence.json reviewStatus must be confirmed", incomplete_editability.stderr)
             complete_editability_evidence(Path(temp))
@@ -814,6 +853,35 @@ class ReleaseSmokeTests(unittest.TestCase):
             self.assertEqual(state["outcome"], "creative-rebuild")
             self.assertEqual(state["deliveryContractHistory"][-1]["choice"], "C")
             self.assertEqual(state["deliveryContractHistory"][-1]["previous"]["finalDeliverable"], "EDITABLE_FAITHFUL_CLONE")
+
+    def test_quality_gate_blocks_open_p2_allows_open_p3_and_validator_detects_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Path(temp)
+            run(
+                PYTHON, "scripts/init_reconstruction.py", temp,
+                "--url", "https://example.com/", "--outcome", "faithful-clone",
+                "--final-deliverable", "B",
+            )
+            complete_teardown_artifacts(workspace)
+            run(PYTHON, "scripts/finalize_teardown.py", temp)
+            run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "FAITHFUL_CLONE")
+            complete_clone_report(workspace)
+            complete_editability_evidence(workspace)
+            complete_quality_gate(workspace, issue={"severity": "P2", "status": "open", "summary": "visible drift"})
+            blocked = run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "REVIEW_GATE", expect=2)
+            self.assertIn("blocks REVIEW_GATE with open P2", blocked.stderr)
+
+            complete_quality_gate(workspace, issue={"severity": "P3", "status": "open", "summary": "non-blocking polish"})
+            run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "REVIEW_GATE")
+            valid = json.loads(run(PYTHON, "scripts/validate_workspace_state.py", temp).stdout)
+            self.assertTrue(valid["passed"])
+
+            state_path = workspace / ".gcw" / "run-state.json"
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            state["state"] = "FAITHFUL_CLONE"
+            state_path.write_text(json.dumps(state), encoding="utf-8")
+            invalid = run(PYTHON, "scripts/validate_workspace_state.py", temp, expect=1)
+            self.assertIn("run-state phase mismatch", invalid.stdout)
 
     def test_completed_b_can_resume_creative_but_a_cannot(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -865,6 +933,7 @@ class ReleaseSmokeTests(unittest.TestCase):
             self.assertIn("must pass FAITHFUL_CLONE and REVIEW_GATE", direct_complete.stderr)
             run(PYTHON, "scripts/advance_workflow.py", temp, "--to", "FAITHFUL_CLONE")
             complete_clone_report(workspace)
+            complete_quality_gate(workspace)
             complete_editability_evidence(workspace)
 
             state_path = workspace / ".gcw" / "run-state.json"
@@ -975,7 +1044,7 @@ class ReleaseSmokeTests(unittest.TestCase):
             blocked = run(PYTHON, "scripts/finalize_teardown.py", temp, expect=1)
             self.assertIn("invalid screenshot image", blocked.stderr)
 
-    def test_minimal_teardown_uses_reduced_spec_and_optional_design_dna(self) -> None:
+    def test_minimal_teardown_uses_reduced_spec_and_requires_design_dna(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             workspace = Path(temp)
             run(
@@ -984,6 +1053,8 @@ class ReleaseSmokeTests(unittest.TestCase):
             )
             complete_teardown_artifacts(workspace)
             root = workspace / ".gcw"
+            state = json.loads((root / "run-state.json").read_text(encoding="utf-8"))
+            self.assertTrue(state["conditionalGates"]["designDna"])
             spec = root / "SITE_SPEC.md"
             text = re.sub(r"<!-- REQUIRED.*?-->", "Completed from persisted evidence.", spec.read_text(encoding="utf-8"))
             text = text.replace(
@@ -992,9 +1063,8 @@ class ReleaseSmokeTests(unittest.TestCase):
             )
             spec.write_text(text, encoding="utf-8")
             (root / "evidence" / "design-dna" / "design-dna.json").unlink()
-            run(PYTHON, "scripts/finalize_teardown.py", temp)
-            manifest = json.loads((root / "teardown-manifest.json").read_text(encoding="utf-8"))
-            self.assertEqual(manifest["designDna"]["status"], "recommended-not-provided")
+            blocked = run(PYTHON, "scripts/finalize_teardown.py", temp, expect=1)
+            self.assertIn("missing required artifact", blocked.stderr)
 
     def test_runtime_independence_blocks_source_origin(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

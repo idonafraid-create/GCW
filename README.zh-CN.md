@@ -62,7 +62,7 @@ python -m pip install -r requirements.txt
 npm run check
 ```
 
-环境要求：Node.js 20+、Python 3.10+，以及通过 Playwright 安装的 Chromium。
+环境要求：Node.js 20+、Python 3.10+、通过 Playwright 安装的 Chromium，以及安装在 `.agent/skills/design-dna` 的 [design-dna](https://github.com/zanwei/design-dna)。所有 teardown 深度（包括 `minimal`）都强制 Design DNA。Canvas/WebGL/WebGPU/Shader 目标还须在 `.agent/skills/web-shader-extractor` 安装 [web-shader-extractor](https://github.com/lixiaolin94/skills/tree/main/web-shader-extractor)，并运行 `npm run check:gpu`。
 
 ### 2. 直接说明目标
 

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "reviewStatus": "pending",
+  "stableSourceBaseline": {
+    "status": "pending",
+    "evidence": []
+  },
+  "verification": {
+    "status": "pending",
+    "evidence": []
+  },
+  "openIssues": []
+}

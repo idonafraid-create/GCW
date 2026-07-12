@@ -103,7 +103,7 @@ def main() -> int:
         "teardownDepth": args.teardown_depth,
         "approximateOrExcludedScope": [],
         "conditionalGates": {
-            "designDna": args.teardown_depth != "minimal",
+            "designDna": True,
             "gpuForensics": "required-when-canvas-webgl-webgpu-or-shaders-detected",
             "runtimeIndependence": editability_target == "MAINTAINABLE_SOURCE" or args.implementation_path == "CLEAN_REBUILD",
             "assetProvenance": "enable-when-asset-heavy-offline-or-maintained",
@@ -143,6 +143,7 @@ def main() -> int:
         root / "CLONE_REPORT.md": (skill_root / "assets" / "clone-report-template.md").read_text(encoding="utf-8"),
         root / "REPLACE_GUIDE.md": (skill_root / "assets" / "replacement-map-template.md").read_text(encoding="utf-8"),
         root / "editability-evidence.json": (skill_root / "assets" / "editability-evidence.template.json").read_text(encoding="utf-8"),
+        root / "quality-gate.json": (skill_root / "assets" / "quality-gate.template.json").read_text(encoding="utf-8"),
         root / "teardown-manifest.json": (Path(__file__).resolve().parent.parent / "assets" / "teardown-manifest.template.json").read_text(encoding="utf-8"),
         evidence / "evidence-index.json": (Path(__file__).resolve().parent.parent / "assets" / "evidence-index.template.json").read_text(encoding="utf-8"),
         evidence / "web-shader-extractor" / "gpu-decision.json": (Path(__file__).resolve().parent.parent / "assets" / "gpu-decision.template.json").read_text(encoding="utf-8"),

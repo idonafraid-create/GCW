@@ -40,7 +40,7 @@ Every task preserves:
 └─ web-shader-extractor/gpu-decision.json
 ```
 
-Run `design-dna` during standard and deep teardown and keep its complete three-dimension JSON. It is recommended but non-blocking for minimal teardown. SITE_SPEC section 4 summarizes only implementation-critical Design System, Design Style, and Visual Effects findings.
+Run `design-dna` during every teardown, including minimal and study-only work, and keep its complete three-dimension JSON. SITE_SPEC section 4 summarizes only implementation-critical Design System, Design Style, and Visual Effects findings.
 
 When a Canvas/WebGL/WebGPU/shader target exists, set `gpu-decision.json.decision` to `required`, run `web-shader-extractor`, and preserve its native `scout-card.json`, `replay-manifest.json`, `run-state.json`, and evidence tree in the same namespace. Before finalizing teardown, `scout-card.json` must be `TARGET_LOCKED`, `replay-manifest.json` must be `REPLAY_READY`, and no blocking replay unknown may remain. Raw Replay and QA belong to the faithful baseline phase.
 

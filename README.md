@@ -62,7 +62,7 @@ python -m pip install -r requirements.txt
 npm run check
 ```
 
-Requirements: Node.js 20+, Python 3.10+, and Chromium installed through Playwright.
+Requirements: Node.js 20+, Python 3.10+, Chromium installed through Playwright, and [design-dna](https://github.com/zanwei/design-dna) installed at `.agent/skills/design-dna`. Design DNA is required for every teardown depth, including `minimal`. For Canvas/WebGL/WebGPU/shader targets, also install [web-shader-extractor](https://github.com/lixiaolin94/skills/tree/main/web-shader-extractor) at `.agent/skills/web-shader-extractor` and run `npm run check:gpu`.
 
 ### 2. Ask for an outcome
 
