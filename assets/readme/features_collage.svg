@@ -1,0 +1,149 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1200" height="380" viewBox="0 0 1200 380"
+     role="img" aria-labelledby="title desc">
+  <title id="title">GCW Pipeline (Author Palette Custom Collage)</title>
+  <desc id="desc">Faithful recreation of the author's vibrant card collage layout for the pipeline steps.</desc>
+
+  <defs>
+    <!-- Subtle Background Grid -->
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1E293B" stroke-width="1"/>
+    </pattern>
+
+    <!-- Unified Deep Soft Shadow -->
+    <filter id="shadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="#000000" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+
+  <!-- Base Dark Background -->
+  <rect width="1200" height="380" rx="16" fill="#0F172A" stroke="#1E293B" stroke-width="1"/>
+  <!-- Grid overlay -->
+  <rect width="1200" height="380" rx="16" fill="url(#grid)"/>
+
+  <!-- Section Header -->
+  <g transform="translate(60, 45)">
+    <!-- Eyebrow -->
+    <text x="0" y="0" font-family="-apple-system, sans-serif" font-size="12" font-weight="700" fill="#94A3B8" letter-spacing="1.5">EVIDENCE-FIRST PIPELINE</text>
+    <!-- Coral Red Dash -->
+    <rect x="0" y="10" width="56" height="4" rx="2" fill="#FF705E"/>
+    
+    <!-- Title -->
+    <text x="0" y="45" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="28" font-weight="900" fill="#FFFFFF" letter-spacing="-0.5">gcw architecture</text>
+    <!-- Description -->
+    <text x="0" y="70" font-family="-apple-system, sans-serif" font-size="14" font-weight="500" fill="#94A3B8">The four-step framework for building and verifying clean website replicas.</text>
+  </g>
+
+  <!-- Card 1: Teardown (Cream) -->
+  <g transform="translate(60, 130)" filter="url(#shadow)">
+    <rect width="230" height="210" rx="14" fill="#FDF8F0"/>
+    <text x="20" y="35" font-family="-apple-system, sans-serif" font-size="14" font-weight="800" fill="#334155">01 / TEARDOWN</text>
+    <rect x="20" y="48" width="190" height="2" fill="#E2E8F0"/>
+    
+    <!-- Inner Graphic -->
+    <g transform="translate(20, 70)">
+       <rect width="190" height="110" rx="8" fill="#1E293B"/>
+       <!-- Log Rows -->
+       <rect x="20" y="20" width="10" height="10" rx="2" fill="#60E0BA"/>
+       <rect x="40" y="22" width="80" height="6" rx="3" fill="#475569"/>
+       
+       <rect x="20" y="40" width="10" height="10" rx="2" fill="#FF705E"/>
+       <rect x="40" y="42" width="110" height="6" rx="3" fill="#475569"/>
+
+       <rect x="20" y="60" width="10" height="10" rx="2" fill="#FBBF24"/>
+       <rect x="40" y="62" width="60" height="6" rx="3" fill="#475569"/>
+       
+       <rect x="20" y="80" width="10" height="10" rx="2" fill="#605CDB"/>
+       <rect x="40" y="82" width="90" height="6" rx="3" fill="#475569"/>
+    </g>
+  </g>
+
+  <!-- Connection Arrow 1 -> 2 -->
+  <g transform="translate(300, 235)">
+    <line x1="0" y1="0" x2="30" y2="0" stroke="#FDF8F0" stroke-width="3" stroke-dasharray="6,4" stroke-opacity="0.3"/>
+    <polygon points="32,-5 42,0 32,5" fill="#FDF8F0" opacity="0.3"/>
+  </g>
+
+  <!-- Card 2: Specify (Purple) -->
+  <g transform="translate(350, 130)" filter="url(#shadow)">
+    <rect width="230" height="210" rx="14" fill="#605CDB"/>
+    <text x="20" y="35" font-family="-apple-system, sans-serif" font-size="14" font-weight="800" fill="#E0E7FF">02 / SPECIFY</text>
+    <rect x="20" y="48" width="190" height="2" fill="#4F46E5"/>
+    
+    <!-- Inner Graphic -->
+    <g transform="translate(20, 70)">
+       <!-- Spec Clipboard -->
+       <rect width="190" height="110" rx="8" fill="#FDF8F0"/>
+       <rect x="65" y="-6" width="60" height="12" rx="4" fill="#1E293B"/> <!-- clip -->
+       
+       <!-- Spec lines -->
+       <rect x="20" y="24" width="30" height="14" rx="4" fill="#605CDB"/>
+       <rect x="60" y="28" width="100" height="6" rx="3" fill="#94A3B8"/>
+
+       <rect x="20" y="48" width="30" height="14" rx="4" fill="#FF705E"/>
+       <rect x="60" y="52" width="80" height="6" rx="3" fill="#94A3B8"/>
+
+       <rect x="20" y="72" width="30" height="14" rx="4" fill="#60E0BA"/>
+       <rect x="60" y="76" width="110" height="6" rx="3" fill="#94A3B8"/>
+    </g>
+  </g>
+
+  <!-- Connection Arrow 2 -> 3 -->
+  <g transform="translate(590, 235)">
+    <line x1="0" y1="0" x2="30" y2="0" stroke="#605CDB" stroke-width="3" stroke-dasharray="6,4"/>
+    <polygon points="32,-5 42,0 32,5" fill="#605CDB"/>
+  </g>
+
+  <!-- Card 3: Clone (Mint Green) -->
+  <g transform="translate(640, 130)" filter="url(#shadow)">
+    <rect width="230" height="210" rx="14" fill="#60E0BA"/>
+    <text x="20" y="35" font-family="-apple-system, sans-serif" font-size="14" font-weight="800" fill="#064E3B">03 / FAITHFUL CLONE</text>
+    <rect x="20" y="48" width="190" height="2" fill="#34D399"/>
+    
+    <!-- Inner Graphic -->
+    <g transform="translate(20, 70)">
+       <!-- Split screen visualization -->
+       <rect x="0" y="0" width="90" height="110" rx="8" fill="#1E293B"/>
+       <rect x="10" y="20" width="70" height="8" rx="4" fill="#475569"/>
+       <rect x="10" y="40" width="50" height="8" rx="4" fill="#475569"/>
+       
+       <rect x="100" y="0" width="90" height="110" rx="8" fill="#FFFFFF"/>
+       <rect x="110" y="20" width="70" height="8" rx="4" fill="#E2E8F0"/>
+       <rect x="110" y="40" width="50" height="8" rx="4" fill="#E2E8F0"/>
+
+       <!-- Equal matching badge -->
+       <circle cx="95" cy="55" r="14" fill="#FF705E" stroke="#FFFFFF" stroke-width="2"/>
+       <text x="95" y="60" font-family="ui-monospace, monospace" font-size="16" font-weight="900" fill="#FFFFFF" text-anchor="middle">=</text>
+    </g>
+  </g>
+
+  <!-- Connection Arrow 3 -> 4 -->
+  <g transform="translate(880, 235)">
+    <line x1="0" y1="0" x2="30" y2="0" stroke="#60E0BA" stroke-width="3" stroke-dasharray="6,4"/>
+    <polygon points="32,-5 42,0 32,5" fill="#60E0BA"/>
+  </g>
+
+  <!-- Card 4: Verify (Coral/Orange) -->
+  <g transform="translate(930, 130)" filter="url(#shadow)">
+    <rect width="230" height="210" rx="14" fill="#FF705E"/>
+    <text x="20" y="35" font-family="-apple-system, sans-serif" font-size="14" font-weight="800" fill="#450A0A">04 / VERIFY</text>
+    <rect x="20" y="48" width="190" height="2" fill="#DC2626" opacity="0.3"/>
+    
+    <!-- Inner Graphic -->
+    <g transform="translate(20, 70)">
+       <rect width="190" height="110" rx="8" fill="#FFFFFF"/>
+       
+       <!-- Checkmark / Quality Gate Graphic -->
+       <!-- Large Circle base -->
+       <circle cx="95" cy="45" r="28" fill="#FDF8F0"/>
+       <!-- Green checkmark circle -->
+       <circle cx="95" cy="45" r="20" fill="#60E0BA"/>
+       <!-- Checkmark icon -->
+       <path d="M 87 45 L 93 51 L 105 39" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+       
+       <!-- Status bar -->
+       <rect x="45" y="85" width="100" height="8" rx="4" fill="#CBD5E1"/>
+    </g>
+  </g>
+
+</svg>

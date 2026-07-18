@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="64" viewBox="0 0 420 64" role="img" aria-labelledby="title desc">
+  <title id="title">README made with beautify-github-readme</title>
+  <desc id="desc">Credit tag for beautify-github-readme with GCW theme</desc>
+  <rect width="420" height="64" rx="12" fill="#0F172A" stroke="#1E293B" stroke-width="1"/>
+  <rect x="16" y="20" width="24" height="24" rx="4" fill="#1E293B"/>
+  <rect x="18" y="22" width="10" height="20" rx="2" fill="#60E0BA"/>
+  <rect x="30" y="22" width="8" height="20" rx="2" fill="#605CDB"/>
+  <text x="56" y="37" font-family="-apple-system, sans-serif" font-size="12" font-weight="700" fill="#64748B" letter-spacing="1">README MADE WITH</text>
+  <text x="196" y="37" font-family="-apple-system, sans-serif" font-size="14" font-weight="800" fill="#E2E8F0">beautify-github-readme</text>
+  <path d="M 380 32 L 392 32 M 387 27 L 392 32 L 387 37" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

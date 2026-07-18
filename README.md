@@ -6,7 +6,9 @@
 
 **Evidence-driven website teardown, faithful cloning, and creative reconstruction.**
 
-<img src="assets/banner.webp" alt="GCW — evidence-driven website reconstruction" width="100%">
+<p align="center">
+  <img src="assets/readme/hero_collage.svg" alt="GCW — evidence-driven website reconstruction" width="100%">
+</p>
 
 [![CI](https://github.com/idonafraid-create/GCW/actions/workflows/ci.yml/badge.svg)](https://github.com/idonafraid-create/GCW/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
@@ -22,7 +24,9 @@ The result can be a technical teardown, a runnable replay, or an editable faithf
 
 GCW stands for Gao Copy Website. Yes, the name is that literal.
 
-## Evidence orchestration: the GCW difference
+<p align="center">
+  <img src="assets/readme/section-orchestration.svg" width="100%" alt="Evidence orchestration: the GCW difference">
+</p>
 
 A screenshot captures one frame. A faithful reconstruction must also explain what happens across routes, breakpoints, hover and focus states, loading transitions, external data, and WebGL or shader pipelines.
 
@@ -34,7 +38,9 @@ GCW keeps three things separate:
 
 This separation makes visual similarity testable and prevents a production bundle replay from being mistaken for maintainable source.
 
-## Quick start
+<p align="center">
+  <img src="assets/readme/section-quickstart.svg" width="100%" alt="Quick start">
+</p>
 
 ### 1. Install
 
@@ -88,7 +94,9 @@ Choosing B does not lock you out of Creative. You can explicitly upgrade to C at
 
 ## What you get
 
-<img src="assets/features.webp" alt="GCW evidence, reconstruction, and verification" width="100%">
+<p align="center">
+  <img src="assets/readme/features_collage.svg" alt="GCW evidence, reconstruction, and verification" width="100%">
+</p>
 
 Depending on scope, GCW leaves behind:
 
@@ -100,7 +108,9 @@ Depending on scope, GCW leaves behind:
 
 `ARTIFACT_REPLAY` may be used as an oracle, but it cannot pass a B/C delivery gate as the final candidate.
 
-## How it works
+<p align="center">
+  <img src="assets/readme/section-how-it-works.svg" width="100%" alt="How it works">
+</p>
 
 ```text
 TEARDOWN_PHASE -> FAITHFUL_CLONE -> REVIEW_GATE -> CREATIVE_REBUILD
@@ -115,7 +125,9 @@ When production recovery is required, `MAINTAINABLE_REBUILD` is the formal strat
 
 For visual-system analysis, GCW integrates [design-dna](https://github.com/zanwei/design-dna). GPU targets additionally require [web-shader-extractor](https://github.com/lixiaolin94/skills/tree/main/web-shader-extractor). Their native evidence remains authoritative; GCW coordinates it rather than duplicating it.
 
-## Documentation
+<p align="center">
+  <img src="assets/readme/section-docs.svg" width="100%" alt="Documentation">
+</p>
 
 | Need | Start here |
 |---|---|
@@ -143,6 +155,12 @@ GCW records evidence and uncertainty; it does not turn deployed artifacts into p
 ## Acknowledgments
 
 GCW builds on ideas and tooling from [design-dna](https://github.com/zanwei/design-dna), [web-shader-extractor](https://github.com/lixiaolin94/skills/tree/main/web-shader-extractor), and [Playwright](https://playwright.dev/).
+
+<p align="center">
+  <a href="https://github.com/oil-oil/beautify-github-readme">
+    <img src="assets/readme/made-with-beautify.svg" width="300" alt="README made with beautify-github-readme">
+  </a>
+</p>
 
 ## License
 

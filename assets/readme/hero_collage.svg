@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1200" height="360" viewBox="0 0 1200 360"
+     role="img" aria-labelledby="title desc">
+  <title id="title">GCW (Author Palette Custom Collage)</title>
+  <desc id="desc">Vibrant flat geometric style with GCW icons using the author's proven aesthetic color palette.</desc>
+
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1E293B" stroke-width="1"/>
+    </pattern>
+
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="16" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <!-- Base Dark Background -->
+  <rect width="1200" height="360" rx="16" fill="#0F172A" stroke="#1E293B" stroke-width="1"/>
+  <!-- Grid overlay -->
+  <rect width="1200" height="360" rx="16" fill="url(#grid)"/>
+
+  <!-- Left Content: Typography Block -->
+  <g transform="translate(80, 70)">
+    <!-- Eyebrow Tag -->
+    <text x="0" y="0" font-family="-apple-system, sans-serif" font-size="13" font-weight="700" fill="#94A3B8" letter-spacing="1.5">TOOLKIT · RECONSTRUCTION</text>
+    <!-- Orange Dash -->
+    <rect x="0" y="10" width="56" height="4" rx="2" fill="#FF705E"/>
+
+    <!-- Large Display Title -->
+    <text x="0" y="85" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="84" font-weight="800" fill="#FFFFFF" letter-spacing="-2">gcw</text>
+    <!-- The Red Dot -->
+    <circle cx="178" cy="72" r="10" fill="#FF705E"/>
+    
+    <!-- Bold Thick Mint Accent Line -->
+    <rect x="0" y="110" width="190" height="12" rx="6" fill="#60E0BA"/>
+    
+    <!-- Subtitle -->
+    <text x="0" y="165" font-family="-apple-system, sans-serif" font-size="22" font-weight="500" fill="#E2E8F0" letter-spacing="0.5">Make website teardown</text>
+    <text x="0" y="195" font-family="-apple-system, sans-serif" font-size="22" font-weight="500" fill="#E2E8F0" letter-spacing="0.5">and cloning auditable.</text>
+    
+    <!-- Bottom Footer Text -->
+    <text x="0" y="260" font-family="-apple-system, sans-serif" font-size="12" font-weight="700" fill="#64748B" letter-spacing="1.5">OBSERVE EVIDENCE · FAITHFUL CLONE · CREATIVE</text>
+  </g>
+
+  <!-- Right Content: Cards using Author's Premium Palette -->
+  <g transform="translate(0, 0)">
+    
+    <!-- Card 1: Back Card (Cream - Teardown) -->
+    <g transform="translate(680, 40) rotate(5)" filter="url(#shadow)">
+      <rect width="280" height="160" rx="14" fill="#FDF8F0"/>
+      <rect x="24" y="20" width="36" height="6" rx="3" fill="#FF705E"/>
+      <text x="24" y="52" font-family="-apple-system, sans-serif" font-size="13" font-weight="800" fill="#334155" letter-spacing="0.5">TEARDOWN / OBSERVE</text>
+      
+      <!-- DOM Tree Graphic -->
+      <g transform="translate(24, 70)">
+        <rect width="232" height="70" rx="10" fill="#1E293B"/> 
+        <!-- Top Node -->
+        <rect x="96" y="10" width="40" height="12" rx="3" fill="#60E0BA"/>
+        <!-- Connection Lines -->
+        <line x1="116" y1="22" x2="116" y2="34" stroke="#60E0BA" stroke-width="2"/>
+        <line x1="60" y1="34" x2="172" y2="34" stroke="#60E0BA" stroke-width="2"/>
+        <line x1="60" y1="34" x2="60" y2="44" stroke="#60E0BA" stroke-width="2"/>
+        <line x1="172" y1="34" x2="172" y2="44" stroke="#60E0BA" stroke-width="2"/>
+        <!-- Child Nodes -->
+        <rect x="40" y="44" width="40" height="12" rx="3" fill="#FDF8F0"/>
+        <rect x="152" y="44" width="40" height="12" rx="3" fill="#FDF8F0"/>
+      </g>
+    </g>
+
+    <!-- Card 2: Middle Card (Mint Green - Clone) -->
+    <g transform="translate(480, 100) rotate(-4)" filter="url(#shadow)">
+      <rect width="280" height="160" rx="14" fill="#60E0BA"/>
+      <text x="24" y="38" font-family="-apple-system, sans-serif" font-size="13" font-weight="800" fill="#064E3B" letter-spacing="0.5">FAITHFUL CLONE</text>
+      
+      <!-- Diff/Compare Split Screen Graphic -->
+      <g transform="translate(24, 60)">
+         <!-- Left Side (Dark Mode Baseline) -->
+         <rect x="0" y="0" width="110" height="76" rx="8" fill="#1E293B"/>
+         <rect x="10" y="14" width="90" height="8" rx="2" fill="#475569"/>
+         <rect x="10" y="32" width="60" height="8" rx="2" fill="#475569"/>
+         
+         <!-- Right Side (Light Mode Sandbox) -->
+         <rect x="122" y="0" width="110" height="76" rx="8" fill="#FFFFFF"/>
+         <rect x="132" y="14" width="90" height="8" rx="2" fill="#E2E8F0"/>
+         <rect x="132" y="32" width="60" height="8" rx="2" fill="#E2E8F0"/>
+
+         <!-- 100% Equal Badge -->
+         <circle cx="116" cy="38" r="14" fill="#605CDB" stroke="#FFFFFF" stroke-width="2"/>
+         <text x="116" y="43" font-family="ui-monospace, monospace" font-size="16" font-weight="900" fill="#FFFFFF" text-anchor="middle">=</text>
+      </g>
+    </g>
+
+    <!-- Card 3: Front Card (Deep Purple - Creative) -->
+    <g transform="translate(730, 150) rotate(-2)" filter="url(#shadow)">
+      <rect width="280" height="160" rx="14" fill="#605CDB"/>
+      <text x="24" y="38" font-family="-apple-system, sans-serif" font-size="13" font-weight="800" fill="#E0E7FF" letter-spacing="0.5">CREATIVE REBUILD</text>
+      
+      <!-- Wireframe to Painted UI Graphic -->
+      <g transform="translate(24, 60)">
+         <!-- Wireframe window -->
+         <rect x="0" y="0" width="90" height="76" rx="8" fill="none" stroke="#E0E7FF" stroke-width="2" stroke-dasharray="4,2"/>
+         <rect x="10" y="14" width="70" height="6" rx="2" fill="#E0E7FF" fill-opacity="0.3"/>
+         
+         <!-- Transformation Arrow -->
+         <path d="M 103 38 L 118 38 M 113 33 L 118 38 L 113 43" fill="none" stroke="#E0E7FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+         
+         <!-- Colorful Rendered UI Window -->
+         <g transform="translate(130, 0)">
+           <rect x="0" y="0" width="102" height="76" rx="8" fill="#FFFFFF"/>
+           <!-- UI Mac-style Header -->
+           <path d="M 0 8 Q 0 0 8 0 L 94 0 Q 102 0 102 8 L 102 20 L 0 20 Z" fill="#FDF8F0"/>
+           <circle cx="10" cy="10" r="3" fill="#FF705E"/>
+           <circle cx="18" cy="10" r="3" fill="#FBBF24"/>
+           <circle cx="26" cy="10" r="3" fill="#60E0BA"/>
+           <!-- UI Body Content -->
+           <rect x="10" y="30" width="82" height="8" rx="2" fill="#605CDB"/>
+           <rect x="10" y="46" width="50" height="8" rx="2" fill="#60E0BA"/>
+         </g>
+      </g>
+    </g>
+
+  </g>
+</svg>

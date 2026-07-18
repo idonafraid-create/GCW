@@ -12,3 +12,7 @@ coverage/
 dist/
 .DS_Store
 Thumbs.db
+
+# Old README backups
+README_old.md
+README_old.zh-CN.md
