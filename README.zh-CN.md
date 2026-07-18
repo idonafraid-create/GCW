@@ -24,6 +24,7 @@ GCW 是一套面向已授权公开网站的 Agent Skill 与工具集。它先从
 
 GCW 就是 Gao Copy Website。对，名字就这么直白。
 
+<!-- ## 证据编排：GCW 的核心差异 -->
 <p align="center">
   <img src="assets/readme/section-orchestration-zh.svg" width="100%" alt="证据编排：GCW 的核心差异">
 </p>

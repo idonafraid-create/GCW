@@ -24,6 +24,7 @@ The result can be a technical teardown, a runnable replay, or an editable faithf
 
 GCW stands for Gao Copy Website. Yes, the name is that literal.
 
+<!-- ## Evidence orchestration: the GCW difference -->
 <p align="center">
   <img src="assets/readme/section-orchestration.svg" width="100%" alt="Evidence orchestration: the GCW difference">
 </p>
